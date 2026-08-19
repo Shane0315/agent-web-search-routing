@@ -29,21 +29,34 @@
 
 ## 快速开始
 
-### 1. 安装
+### 1. 安装（三选一）
 
-复制 Skill 到你的 harness 全局技能目录：
+**方式 A：让 AI 帮你装（推荐，零命令）**
+
+直接对你的 Agent（Codex / Claude Code / Proma）说一句话即可：
+
+> 帮我安装一个 skill：web-search-routing。仓库地址 https://github.com/Shane0315/agent-web-search-routing
+
+Agent 会自己下载并放到正确的全局技能目录，装完你直接提问就能用。
+
+**方式 B：一键脚本**
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/Shane0315/agent-web-search-routing/main/install.sh | bash
+```
+
+脚本会自动探测你用的是 Codex / Claude Code / Proma，并复制到对应目录。
+
+**方式 C：手动复制（兜底）**
+
+```bash
+git clone https://github.com/Shane0315/agent-web-search-routing
 # Codex
 cp -r agent-web-search-routing ~/.codex/skills/
-
 # Claude Code
 cp -r agent-web-search-routing ~/.claude/skills/
-
 # Proma
 cp -r agent-web-search-routing ~/.proma/default-skills/
-
-# 其他 harness：参照其 skills 目录
 ```
 
 ### 2. 编辑渠道表（可选）
@@ -119,6 +132,7 @@ agent-web-search-routing/
 ├── SKILL.md         # 决策逻辑（Agent 读取的核心）
 ├── channels.yaml    # 渠道注册表（用户可编辑增删）
 ├── INSTALL.md       # 详细安装指南
+├── install.sh       # 一键安装脚本（自动探测 harness）
 ├── LICENSE          # MIT
 └── README.md        # 本文件
 ```
@@ -167,7 +181,7 @@ Issues 和 PR 欢迎。提交前请确保：
 
 ## License
 
-MIT © Harvey (Thor1992)
+MIT © Shane0315
 
 ---
 

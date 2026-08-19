@@ -11,6 +11,20 @@
 
 ## 一、快速开始（2 分钟）
 
+**方式 A：让 AI 帮你装（推荐）**——直接对你的 Agent 说：
+
+> 帮我安装一个 skill：web-search-routing。仓库地址 https://github.com/Shane0315/agent-web-search-routing
+
+**方式 B：一键脚本**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Shane0315/agent-web-search-routing/main/install.sh | bash
+```
+
+脚本自动探测 Codex / Claude Code / Proma 并复制到对应全局技能目录。
+
+**方式 C：手动复制**
+
 ```bash
 # 1. 复制 Skill 到你的 harness 全局技能目录
 #    Proma:      ~/.proma/default-skills/web-search-routing/
