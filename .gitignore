@@ -1,0 +1,19 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Local config / secrets
+.env
+.env.local
+*.key
+secrets.json
+
+# Python / Node (if any scripts added later)
+__pycache__/
+*.pyc
+node_modules/

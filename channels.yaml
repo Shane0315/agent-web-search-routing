@@ -1,0 +1,153 @@
+# web-search-routing 渠道注册表
+# =====================================================
+# 这是 Skill 的「渠道层」：定义所有可用的搜索渠道及其能力/成本。
+# 用户根据自己的环境编辑此文件：删除没装的渠道，或调整优先级。
+#
+# 分级（成本档位，由 Skill 决策逻辑使用）：
+#   tier0 = 订阅内置搜索（沉没成本，边际成本≈0，仅订阅制用户有）
+#   tier1 = 免费额度渠道（注册即有免费额度）
+#   tier2 = 按量付费渠道（按次/按 token 计费）
+#
+# capability: 该渠道能覆盖的能力维度（W1-W7，见 SKILL.md）
+# required:   是否必选渠道（缺失时 Skill 会引导用户安装，而不是静默降级）
+# w3_role:    W3 两阶段管线中的角色（discover=发现 / verify=核验 / confirm=确认）
+# =====================================================
+
+version: "3.1.0"
+
+channels:
+  # ───────────── Tier 0：订阅内置搜索（沉没成本）─────────────
+  gpt-web-search:
+    name: "GPT 内置搜索 (ChatGPT 订阅)"
+    tier: 0
+    harness: ["chatgpt-desktop", "codex", "chatgpt-web"]
+    capability: [W1, W2, W4, W5, W6, W7]
+    cost: "订阅内，边际成本≈0"
+    required: false
+    detect: "环境工具列表含 web_search / web_search_exa（Codex/ChatGPT 订阅自动拥有）"
+    note: "搜索引擎索引级，抓不到社交平台原生内容（W3 弱）"
+
+  claude-web-search:
+    name: "Claude 内置搜索 (Claude 订阅)"
+    tier: 0
+    harness: ["claude-code", "claude-desktop"]
+    capability: [W1, W2, W4, W5, W6, W7]
+    cost: "订阅内，边际成本≈0"
+    required: false
+    detect: "环境工具列表含 WebSearch"
+    note: "同样抓不到社交平台原生内容（W3 弱）"
+
+  # ───────────── Tier 1：免费额度渠道 ─────────────
+  tavily:
+    name: "Tavily (Proma WebSearch 直连)"
+    tier: 1
+    harness: ["proma"]
+    capability: [W1, W2, W4, W6, W7]
+    cost: "1000 credits/月（免费，月度重置）"
+    required: false
+    install: |
+      # 1. 注册 https://app.tavily.com
+      # 2. 创建 API Key（tvly-xxx）
+      # 3. 配置到 Proma 的 chat-tools.json：
+      #    { "toolCredentials": { "web-search": { "useCloud": "false", "apiKey": "tvly-xxx" } } }
+    note: "英文事实/通用搜索首选，免费额度充足"
+
+  brave:
+    name: "Brave Search (MCP)"
+    tier: 1
+    harness: ["proma", "claude-code", "codex", "generic-mcp"]
+    capability: [W1, W2, W4, W6, W7]
+    cost: "$5 credits/月（免费，月度重置）"
+    required: false
+    install: |
+      # 1. 注册 https://api-dashboard.search.brave.com/register
+      # 2. 创建 API Key（BSAxxx）
+      # 3. mcp.json 添加（stdio）：
+      #    npx -y @brave/brave-search-mcp-server --transport stdio
+      #    env.BRAVE_API_KEY=BSAxxx
+      #    代理环境（国内必需）：NODE_USE_ENV_PROXY=1 + HTTPS_PROXY/HTTP_PROXY/ALL_PROXY
+    note: "英文/深度搜索强；免费档不支持 llm_context（400 OPTION_NOT_IN_PLAN）"
+
+  museon:
+    name: "Museon CLI (社交平台原生数据)"
+    tier: 1
+    harness: ["proma", "claude-code", "codex", "generic-cli"]
+    capability: [W3]
+    w3_role: "discover"   # W3 第1阶段·发现（高召回原生样本）
+    cost: "$0 免费档（跟踪 3 创作者）"
+    required: true   # ← 必选渠道：W3 发现的核心通道
+    install: |
+      # 1. 安装（需 Python 3.11+ 和 uv）
+      #    uv tool install "https://github.com/Museon-AI/museon-cli/releases/download/v0.5.3/museoncli-0.5.3-py3-none-any.whl"
+      # 2. 安装 Agent Skill：museoncli setup --agent <claude-code|codex|proma>
+      # 3. 授权（浏览器 OAuth）：museoncli auth start → auth finish --wait
+      # 4. 保存凭证：museoncli whoami 验证；API key 存入环境变量或 ~/.museon
+      #    最新版本号：https://github.com/Museon-AI/museon-cli/releases
+    note: |
+      小红书（笔记作者/点赞/评论/封面）+ X + Reddit + LinkedIn 原生数据。
+      无登录态依赖，首轮信息密度高。搜索引擎（含 GPT/Claude 内置）抓不到社交原生内容，
+      W3 场景不可替代。
+
+  agent-reach:
+    name: "Agent Reach CLI (本地互联网路由器)"
+    tier: 1
+    harness: ["claude-code", "codex", "generic-cli"]
+    capability: [W3, W4, W6, W2]
+    w3_role: "verify"   # W3 第2阶段·核验（读原帖/评论取证）
+    cost: "免费（开源 CLI，零 API 费用）"
+    required: false     # 推荐装：核验增强（不是硬必装，避免劝退新用户）
+    install: |
+      # 1. 安装 agent-reach（15 平台多后端路由器）
+      #    安装指南：https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/install.md
+      # 2. 小红书等平台需 Chrome 登录态（OpenCLI 桥接）
+      # 3. 验证：agent-reach doctor --json 看 xiaohongshu active_backend
+      # 4. 保持更新：agent-reach check-update
+    note: |
+      15 平台多后端：Exa/GitHub/YouTube/B站/V2EX/RSS + 需登录态的小红书/Reddit/X/IG。
+      强在「打开原帖、读正文和评论、逐条核验」。可用性受浏览器扩展、登录态、
+      平台风控影响。与 Museon 互补：Museon 发现 → Agent Reach 核验。
+
+  kimi-webbridge:
+    name: "Kimi WebBridge (本地浏览器控制)"
+    tier: 1
+    harness: ["codex", "chatgpt-desktop", "generic"]
+    capability: [W3, W4, W6]
+    cost: "免费（本地 daemon，控制用户真实浏览器）"
+    required: false
+    install: |
+      # 本地浏览器控制 daemon，走用户已登录的浏览器会话。
+      # 不调 Kimi API、不按量付费；适合 W3 降级或浏览器兜底。
+      # 详情见其自身 SKILL.md（~/.codex/skills/kimi-webbridge/）
+    note: "本质是浏览器自动化，质量依赖页面可读性；Museon/Agent Reach 都缺失时的 W3 降级方案"
+
+  # ───────────── Tier 2：按量付费渠道 ─────────────
+  zhipu:
+    name: "智谱 Web Search (MCP)"
+    tier: 2
+    harness: ["proma", "claude-code", "codex", "generic-mcp"]
+    capability: [W1, W2, W4, W5, W7]
+    cost: "按量：0.01-0.05 元/次"
+    required: false
+    install: |
+      # 1. 注册 https://open.bigmodel.cn
+      # 2. 创建 API Key（xxxx.xxxx）
+      # 3. mcp.json 添加（type 必须是 http，不是 sse）：
+      #    { "type": "http",
+      #      "url": "https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp?Authorization=<你的Key>" }
+    note: "中文搜索/深度报告强；国内直连无需代理"
+
+# 默认优先级（按成本档位，Skill 决策时参考；用户可在自己环境覆盖）
+priority_default:
+  - tier: 0        # 订阅内置搜索优先（沉没成本）
+  - tier: 1        # 免费渠道次之
+  - tier: 2        # 按量付费兜底
+
+# W3 两阶段管线组合（v3.1 核心：发现 + 核验 互补，不替代）
+w3_pipeline:
+  discover: "museon"        # 第1阶段·发现：高召回原生样本
+  verify: "agent-reach"     # 第2阶段·核验：读原帖/评论取证
+  confirm: "official-docs"  # 第3阶段·确认：官方文档（仅价格/权益/功能变更时）
+  degrade_notes:
+    no_museon: "浏览器打开小红书/X 搜索；无法批量抓原生数据，质量明显下降"
+    no_agent_reach: "Museon 发现 + 浏览器手动打开重点原帖；核验变慢，评论读取受限"
+    both_missing: "浏览器直接搜；仅 SEO 可见内容，口碑质量低"
