@@ -55,8 +55,10 @@ git clone https://github.com/Shane0315/agent-web-search-routing
 cp -r agent-web-search-routing ~/.codex/skills/
 # Claude Code
 cp -r agent-web-search-routing ~/.claude/skills/
-# Proma
-cp -r agent-web-search-routing ~/.proma/default-skills/
+# Proma（自动同步所有工作区 + 全局 default-skills）
+cp -r agent-web-search-routing ~/.proma-community/default-skills/
+# 旧架构（2025-08 前）才用：
+# cp -r agent-web-search-routing ~/.proma/default-skills/
 ```
 
 ### 2. 编辑渠道表（可选）
@@ -154,7 +156,7 @@ agent-web-search-routing/
 
 - ✅ **OpenAI Codex / ChatGPT Desktop**（通过 `~/.codex/AGENTS.md` 注入，因 Codex 的 2% Skill 预算限制）
 - ✅ **Claude Code / Claude Desktop**（原生 SKILL.md）
-- ✅ **Proma**（`default-skills/` 全局）
+- ✅ **Proma**（`install.sh` 自动同步到所有工作区 skills 目录 + 全局 `default-skills`）
 - ✅ 任何支持 Markdown 指令文件的 Agent
 
 ## 设计原则

@@ -7,7 +7,7 @@ description: |
   新用户自动引导安装缺失渠道 → 复杂调研用子 Agent 搜索提升质量。
   触发词：搜索/查资料/联网/口碑/评测/最新/对比/调研/web search/research。
 metadata:
-  version: "3.1.0"
+  version: "3.2.0"
 ---
 
 # Web Search Routing
@@ -24,6 +24,7 @@ metadata:
   → Step 0 环境探测（自动，输出「渠道体检报告」）
   → Step 0.5 缺失引导（按 W3 需求分级，新用户必经）
   → Step 1 判断复杂度（简单→快速路径；复杂→打分）
+  → Step 1.5 歧义澄清（多义词先向用户确认一句）
   → Step 2 7 维打分（W1-W7）
   → Step 3 成本自适应选渠道
   → Step 4 W3 两阶段管线（Museon 发现 → Agent Reach 核验 → 官方验证）
@@ -45,16 +46,19 @@ metadata:
    - `museoncli whoami` 可用？→ Museon 已装
    - `agent-reach doctor --json` 可用？→ Agent Reach 已装
      - 再看 `xiaohongshu` 通道 active_backend 是否激活（登录态）→ 判定核验能力
-4. **输出「渠道体检报告」**（简短表格，告知用户当前能力与缺口）：
+4. **输出「渠道体检报告」**（简短表格，告知用户当前能力与缺口；**每个 ❌ 后跟一行白话解读**，让普通用户一眼看懂缺什么、装了有什么好处）：
 
 ```
 ┌ 渠道体检报告 ┐
-│ 内置搜索:  ✅/❌ (订阅/API 模式)
-│ 智谱:      ✅/❌  Brave: ✅/❌  Tavily: ✅/❌
-│ Museon:    ✅/❌  ← W3 发现必需
-│ Agent Reach: ✅/❌ ← W3 核验增强（小红书登录态: 已激活/未激活）
+│ 内置搜索:  ✅/❌ (订阅/API 模式)         → 有订阅就优先用它，不用额外花钱
+│ 智谱:      ✅/❌  Brave: ✅/❌  Tavily: ✅/❌  → 中文/英文的普通网页搜索
+│ Museon:    ✅/❌  ← W3 发现必需          → ❌=搜不到小红书真实评论，装它可解决
+│ Agent Reach: ✅/❌ ← W3 核验增强          → ❌=口碑只能看标题摘要，装后可读原帖和评论
+│            （小红书登录态: 已激活/未激活）
 └─────────────┘
 ```
+
+> **白话解读原则**：报告不是给工程师看的清单。每行 ❌ 都要跟一句「缺什么 → 装它有什么好处」的人话（如上面右列），避免 W3/Tier/harness 等术语轰炸。技术细节（档位/维度）留给自己，给用户只说影响。
 
 ## Step 0.5：缺失引导（新用户必经，按 W3 需求分级）
 
@@ -75,8 +79,32 @@ metadata:
   - Museon（发现）: 已装/未装
   - Agent Reach（核验）: 已装/未装
 建议补齐后调研质量更高。是否需要我给出安装步骤？
-（用户同意 → 输出安装命令；拒绝 → 用浏览器降级，明确说明质量下降）
+（用户同意 → 直接输出下方「内嵌最小安装命令」，按需分段；
+  拒绝 → 用浏览器降级，并给价值对比，见 Step 4 降级节）
 ```
+
+**内嵌最小安装命令**（v3.2 起直接写在 SKILL.md，Agent 无需翻 INSTALL.md/channels.yaml 即可引导）：
+
+```bash
+# ── Museon（必装，W3 社交口碑「发现」）──
+# 前置：Python 3.11+ 与 uv
+uv tool install "https://github.com/Museon-AI/museon-cli/releases/download/v0.5.3/museoncli-0.5.3-py3-none-any.whl"
+# 装 Agent Skill（按用户 harness 选一个：claude-code / codex / proma）
+museoncli setup --agent claude-code
+# 授权（浏览器 OAuth，一次性）：按提示登录即可
+museoncli auth start
+museoncli auth finish --wait
+# 验证：能看到账号信息即成功；把返回的 API key 存到环境变量 MUSEON_API_KEY 或 ~/.museon
+museoncli whoami
+
+# ── Agent Reach（推荐装，W3 口碑「核验」，读原帖/评论）──
+# 完整安装指南：https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/install.md
+# 小红书等平台需 Chrome 登录态（OpenCLI 桥接）
+agent-reach --version
+agent-reach doctor --json    # 看 xiaohongshu 的 active_backend 是否激活
+```
+
+> 授权说明：Museon 安装后需浏览器 OAuth 一次（约 1 分钟）；Agent Reach 的小红书通道需在 Chrome 里保持登录态。两者都免费。
 
 ---
 
@@ -86,6 +114,21 @@ metadata:
   - 订阅模式：GPT/Claude 内置搜索一次
   - API 模式：Tier1 免费渠道（Tavily 英文/Brave 英文/智谱中文）一次
 - **复杂任务**（多对比/多视角/多语言/YMYL 敏感话题/含 W3 口碑）：走完整打分。
+
+## Step 1.5：歧义澄清（打分前必查）
+
+搜索词可能有多重含义（产品名 vs 动作、专有名词 vs 缩写、同名概念）。**打分前先自查一次**，
+满足任一条件就先向用户确认一句，不要凭猜打分：
+
+- 含产品名/专有名词，且可能是动作或普通名词（如「get 笔记」→ 是某个笔记产品，还是「获取笔记」？）
+- 含缩写/首字母词（AIGC、RAG、SSR…）
+- 同一句话里混了多个主题/对象
+- 词同时可作动词与名词（run、clip、prompt…）
+
+**澄清话术**（一句话，不打断节奏）：
+> 你问的「X」是指 A 还是 B？（或：你是指产品 X，还是动作 X？）
+
+用户确认后再进入 Step 2 打分；若词义明确则跳过本步，不额外打扰。
 
 ## Step 2：7 维打分（0=无关 / 1=弱 / 2=中 / 3=核心）
 
@@ -116,7 +159,7 @@ metadata:
   → GPT 内置搜索（一次）→ 不足再 Brave（Tier1）
 ```
 
-## Step 4：W3 社交口碑 —— 两阶段管线（v3.1 核心）
+## Step 4：W3 社交口碑 —— 两阶段管线（v3.2 核心）
 
 **W3 不是单一工具能完成的，需要「发现 + 核验 + 确认」三阶段。**
 核心原因：社交搜索的排序差异大（不同工具前排重合率可能只有 6/10），
@@ -177,6 +220,12 @@ agent-reach web / 浏览器打开官方文档页
 | 缺 Museon | 浏览器打开小红书/X 搜索 | ⚠️ 无法批量抓取原生数据，质量明显下降 |
 | 缺 Agent Reach | Museon 发现 + 浏览器手动打开重点原帖 | ⚠️ 核验变慢，评论读取受限 |
 | 两者都缺 | 浏览器直接搜 | ❌ 仅 SEO 可见内容，口碑质量低 |
+
+**用户拒绝安装时的价值论证**（别只说「质量下降」，给具体对比，降低拒绝率）：
+
+> 你自己打开小红书/浏览器搜索：只能看到前几页、无法批量分析、看不到点赞/评论/收藏/作者等互动数据。
+> 装 Museon 后：一次能搜 10+ 条原生结果，带完整互动信号，可批量分析「大家在讨论什么、有没有避雷点」。
+> （Agent Reach 同理：装后能打开原帖逐条核验，把「个案」和「高频共识」分清楚。）
 
 ---
 
