@@ -1,11 +1,11 @@
-# web-search-routing 安装指南（v3.2）
+# web-search-routing 安装指南（v3.2.0）
 
 让 Skill 在任何 harness（ChatGPT/Codex、Claude Code、Proma 等）里**开箱即用**。
 核心：Skill 会自动探测环境并选择渠道；**Museon 必装 + Agent Reach 推荐装**，
 首次 W3 查询时自动引导安装。
 
-> 💡 **新用户最简路径**：只装 Museon 就能跑（W3 发现），Agent Reach 是核验增强（选装）。
-> 完整 W3 体验（发现+核验）推荐两者都装。详见下方「新用户引导」。
+> 💡 **新用户最简路径**：先看 [`ONBOARDING.md`](ONBOARDING.md)。只装 Museon 就能跑通 W3 发现；Agent Reach 是第二阶段核验增强（选装）。
+> 完整 W3 体验（发现+核验）推荐两者都装，但不要第一次就给自己一次性安装压力。
 
 ---
 
@@ -27,9 +27,11 @@ curl -fsSL https://raw.githubusercontent.com/Shane0315/agent-web-search-routing/
 
 ```bash
 # 1. 复制 Skill 到你的 harness 全局技能目录
-#    Proma:      ~/.proma/default-skills/web-search-routing/
-#    Codex:      ~/.codex/skills/web-search-routing/
-#    Claude Code: ~/.claude/skills/web-search-routing/
+#    Proma 新版（推荐）: ~/.proma-community/default-skills/web-search-routing/
+#    Proma 新版工作区级: ~/.proma-community/agent-workspaces/<workspace>/skills/web-search-routing/
+#    Codex:             ~/.codex/skills/web-search-routing/
+#    Claude Code:       ~/.claude/skills/web-search-routing/
+#    旧版 Proma（仅兼容）: ~/.proma/default-skills/web-search-routing/
 #    （其他 harness 参照其 skills 目录）
 
 # 2. 编辑 channels.yaml，删除你没装的渠道
@@ -43,15 +45,17 @@ curl -fsSL https://raw.githubusercontent.com/Shane0315/agent-web-search-routing/
 
 ## 一.5、新用户引导（第一次用，看这里）
 
+首次使用建议直接看 [`ONBOARDING.md`](ONBOARDING.md)，按“安装 Skill → 只装 Museon → 完成一次 W3 查询”的顺序跑通。
+
 Skill 会在你**首次提问涉及口碑/评测**时自动检测并引导。这里提前给你全景：
 
 | 你的需求 | 最少要装 | 推荐体验 |
 |---------|---------|---------|
 | 只看网页/事实信息 | 什么都不用装 | +智谱/Brave（可选）|
-| 要看小红书/X 真实口碑 | **Museon（必装）** | +Agent Reach（推荐）|
-| 要深挖原帖评论、逐条核验 | **Museon + Agent Reach** | 完整两阶段 |
+| 要看小红书/X 真实口碑 | **Museon（先装，先跑通）** | +Agent Reach（第二阶段推荐）|
+| 要深挖原帖评论、逐条核验 | **Museon + Agent Reach** | 完整发现 + 核验 |
 
-**Skill 会自动判断你缺什么，并在问答中给你对应安装命令。** 无需提前研究。
+**Skill 会自动判断你缺什么；你同意后，Agent 会尽量自动完成安装和校验。** 只有浏览器 OAuth、网页登录、Chrome 登录态或系统权限确认需要你亲自操作。
 
 ---
 
@@ -60,24 +64,32 @@ Skill 会在你**首次提问涉及口碑/评测**时自动检测并引导。这
 > 为什么必选：搜索引擎（含 GPT/Claude 内置搜索）**抓不到小红书/X/Reddit 的原生内容**。
 > W3 真实口碑（评测/体验/避雷）只有 Museon 能高质量覆盖。缺失时 Skill 会在 W3 查询时引导你安装。
 
+默认不需要手动复制下面这些命令。用户同意安装后，Agent 应先自动检查 `python3`/`uv`/网络工具，再安装官方 Museon CLI、执行 `setup` 和 `whoami`；只有浏览器 OAuth 授权需要用户操作。也可以直接运行本 Skill 附带的幂等脚本：
+
 ```bash
-# 1. 安装（需 Python 3.11+ 和 uv）
-uv tool install "https://github.com/Museon-AI/museon-cli/releases/download/v0.5.3/museoncli-0.5.3-py3-none-any.whl"
-
-# 2. 安装 Agent Skill（按你的 harness 选一个）
-museoncli setup --agent claude-code   # 或 codex / proma
-
-# 3. 授权（浏览器 OAuth，一次性）
-museoncli auth start
-museoncli auth finish --wait
-
-# 4. 验证 + 保存凭证
-museoncli whoami                      # 看到你的账号信息即成功
-# 把返回的 API key 存到环境变量：export MUSEON_API_KEY=xxx
-# 或存入 ~/.museon 配置文件
+bash install-museon.sh
 ```
 
-> 最新版本号查看：https://github.com/Museon-AI/museon-cli/releases
+手动命令参考：
+
+```bash
+# 1. 安装（需 Python 3.11+ 和 uv）
+MUSEON_VERSION=0.5.19
+uv tool install "https://github.com/Museon-AI/museon-cli/releases/download/v${MUSEON_VERSION}/museoncli-${MUSEON_VERSION}-py3-none-any.whl"
+
+# 2. 安装 Agent Skill（优先 auto；不要未经核实写死 proma）
+museoncli setup --agent auto
+
+# 3. 授权（浏览器 OAuth，一次性）
+museoncli auth status
+museoncli auth start
+museoncli auth finish --wait --timeout 60 --poll-interval 2
+
+# 4. 验证
+museoncli whoami                      # 看到账号信息即成功
+```
+
+> 最新版本号查看：https://github.com/Museon-AI/museon-cli/releases。当前文档已核实 v0.5.19。
 
 ---
 
@@ -88,18 +100,20 @@ museoncli whoami                      # 看到你的账号信息即成功
 > 覆盖 15 平台（小红书/Reddit/X/IG/B站/YouTube/GitHub/V2EX/RSS…）。
 
 ```bash
-# 1. 安装 agent-reach（15 平台多后端路由器）
-#    安装指南（按官方文档执行）：
-#    https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/install.md
-#    或参考 skills-manager: skillhub install agent-reach
-
-# 2. 小红书等平台需要 Chrome 登录态（OpenCLI 桥接）
-#    - 安装系统 Chrome 扩展
-#    - 指定已登录小红书/Reddit 等平台的 Chrome profile
-
-# 3. 验证
+# 1. 先做只读依赖与通道检查（官方文档确认可用）
+agent-reach install --env=auto
 agent-reach --version
-agent-reach doctor --json    # 看 xiaohongshu 的 active_backend 是否激活
+agent-reach doctor --json    # 看可用 backend、通道状态和后续命令提示
+
+# 2. 完整安装指南（按官方文档执行）：
+#    https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/install.md
+#    需要系统级安装/启用通道时，再按 doctor 输出选择，例如：
+#    agent-reach install --env=auto --system --channels=<doctor 或官方文档确认的通道名>
+
+# 3. 小红书等平台可能需要 Chrome 登录态（OpenCLI 桥接）
+#    - 安装官方要求的 Chrome 扩展
+#    - 使用已登录小红书/Reddit 等平台的 Chrome profile
+#    - 不要让 Agent 编造 opencli 子命令；以 doctor 输出和官方文档为准
 
 # 4. 保持更新
 agent-reach check-update
@@ -143,9 +157,10 @@ agent-reach check-update
 
 ## 四、各渠道详细配置
 
-### Tavily（仅 Proma）
+### Tavily（Proma）
 ```json
-// ~/.proma/chat-tools.json
+// 新版 Proma 常见路径：~/.proma-community/chat-tools.json
+// 旧版兼容路径：~/.proma/chat-tools.json
 { "toolCredentials": { "web-search": { "useCloud": "false", "apiKey": "tvly-你的Key" } } }
 ```
 注册：https://app.tavily.com
@@ -183,7 +198,7 @@ agent-reach check-update
 
 新会话提问测试：
 ```text
-帮我查一下「xxx 产品真实用户评价」（评测类 → 应触发 Museon）
+帮我查一下 get笔记 的真实用户评价，重点看小红书上的避雷点和高频好评
 ```
 预期：
 - 首次触发 → Skill 探测环境
@@ -210,9 +225,18 @@ Skill 会在搜索后提示你的环境短板，常见优化：
 
 ## 七、多工作区/多 harness
 
-- Skill 放全局目录（如 Proma `default-skills/`）→ 所有工作区可见
-- channels.yaml 跟随 Skill 目录，一份配置全 harness 生效
+- Proma 新版全局目录：`~/.proma-community/default-skills/` → 所有工作区可见
+- Proma 新版工作区目录：`~/.proma-community/agent-workspaces/<workspace>/skills/` → 仅该工作区可见
+- `~/.proma/default-skills/` 仅作为旧版兼容；新装优先使用 `~/.proma-community/`
+- channels.yaml 跟随 Skill 目录，一份配置随该安装副本生效
 - MCP 配置（mcp.json）是工作区级：多工作区需复制
+
+安装后可运行：
+
+```bash
+bash doctor.sh          # 人类可读体检报告
+bash doctor.sh --json   # 机器可读 JSON
+```
 
 ---
 

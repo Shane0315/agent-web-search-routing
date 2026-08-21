@@ -17,7 +17,7 @@
 #   Proma        -> ~/.proma-community/agent-workspaces/*/skills/ + ~/.proma-community/default-skills/（全部工作区）
 #   其他/未识别  -> 交互式询问（列出选项让用户选择）
 # ============================================================
-set -e
+set -euo pipefail
 
 REPO="agent-web-search-routing"
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -91,21 +91,35 @@ install_proma() {
 
 install_to() {
   local dest="$1"
+  local required_files=(SKILL.md channels.yaml INSTALL.md ONBOARDING.md doctor.sh install.sh README.md LICENSE)
+  local optional_assets=(install-museon.sh install-agent-reach.sh scripts docs)
   if ! mkdir -p "$dest/$REPO"; then
     echo "❌ 无法创建目录 $dest/$REPO，安装中止。"
     return 1
   fi
-  # 主文件必须复制成功（不再用 || true 吞错），失败即中止
-  if ! cp -r "$SOURCE_DIR/SKILL.md" "$SOURCE_DIR/channels.yaml" "$SOURCE_DIR/INSTALL.md" "$dest/$REPO/" 2>/dev/null; then
-    echo "❌ 复制文件失败，安装中止。"
-    if [ -n "$TMP_DIR" ]; then
-      echo "   已下载的临时文件保留在 $TMP_DIR（修复网络/权限问题后可重试）。"
+  local file
+  local file
+  for file in "${required_files[@]}"; do
+    if [ ! -e "$SOURCE_DIR/$file" ]; then
+      echo "❌ 缺少运行时文件 $file，安装中止。"
+      return 1
     fi
-    return 1
-  fi
-  # 若仓库含 LICENSE/README 一并复制（可选文件，失败不致命）
-  [ -f "$SOURCE_DIR/LICENSE" ] && cp "$SOURCE_DIR/LICENSE" "$dest/$REPO/" 2>/dev/null || true
-  [ -f "$SOURCE_DIR/README.md" ] && cp "$SOURCE_DIR/README.md" "$dest/$REPO/" 2>/dev/null || true
+    if ! cp -R "$SOURCE_DIR/$file" "$dest/$REPO/"; then
+      echo "❌ 复制文件 $file 失败，安装中止。"
+      if [ -n "$TMP_DIR" ]; then
+        echo "   已下载的临时文件保留在 $TMP_DIR（修复网络/权限问题后可重试）。"
+      fi
+      return 1
+    fi
+  done
+  local asset
+  for asset in "${optional_assets[@]}"; do
+    if [ -e "$SOURCE_DIR/$asset" ]; then
+      local target_parent="$dest/$REPO/$(dirname "$asset")"
+      mkdir -p "$target_parent" 2>/dev/null || true
+      cp -R "$SOURCE_DIR/$asset" "$target_parent/" 2>/dev/null || true
+    fi
+  done
   echo "✅ 已安装到 $dest/$REPO"
   INSTALLED=1
 }
@@ -211,5 +225,5 @@ fi
 if [ "$INSTALLED" = "1" ]; then
   echo ""
   echo "🎉 安装完成！新开一个会话，问一个需要搜索的问题即可自动触发。"
-  echo "    首次触发会输出「渠道体检报告」，按提示补齐缺失渠道（Museon 必装 / Agent Reach 推荐）。"
+  echo "    首次触发会输出「渠道体检报告」；若缺少 Museon，Agent 会优先尝试自动检查和安装，只有浏览器 OAuth/登录步骤需要你操作。"
 fi

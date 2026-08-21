@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Harness](https://img.shields.io/badge/harness-Codex%20%7C%20Claude%20%7C%20Proma%20%7C%20any-blue)](#)
-[![Skill Version](https://img.shields.io/badge/version-3.1.0-green)](#)
+[![Skill Version](https://img.shields.io/badge/version-3.2.0-green)](#)
 
 ## 为什么需要它？
 
@@ -29,6 +29,17 @@
 
 ## 快速开始
 
+> 🚀 **第一次使用先看 [`ONBOARDING.md`](ONBOARDING.md)**：5 分钟最小成功路径是“安装 Skill → 只装 Museon → 完成一次 W3 口碑查询”。Agent Reach 是第二阶段核验增强；浏览器/内置搜索只是最后兜底，不是同等口碑体验。
+
+### 0. 5 分钟最小成功路径
+
+1. 安装本 Skill。
+2. 先只安装并授权 [Museon](https://github.com/Museon-AI/museon-cli)，跑通社交口碑“发现”。
+3. 新开会话提问：`帮我查一下 get笔记 的真实用户评价，重点看小红书上的避雷点和高频好评。`
+4. 需要逐条读原帖/评论核验时，再安装 [Agent Reach](https://github.com/Panniantong/agent-reach)。
+
+首次搜索会输出渠道体检报告。若 Museon 未安装且问题属于口碑/评测/避雷，Agent 必须先说明当前只能低置信兜底，不能假装完成完整 W3 口碑调研。
+
 ### 1. 安装（三选一）
 
 **方式 A：让 AI 帮你装（推荐，零命令）**
@@ -52,13 +63,18 @@ curl -fsSL https://raw.githubusercontent.com/Shane0315/agent-web-search-routing/
 ```bash
 git clone https://github.com/Shane0315/agent-web-search-routing
 # Codex
-cp -r agent-web-search-routing ~/.codex/skills/
+cp -R agent-web-search-routing ~/.codex/skills/
 # Claude Code
-cp -r agent-web-search-routing ~/.claude/skills/
-# Proma（自动同步所有工作区 + 全局 default-skills）
-cp -r agent-web-search-routing ~/.proma-community/default-skills/
-# 旧架构（2025-08 前）才用：
-# cp -r agent-web-search-routing ~/.proma/default-skills/
+cp -R agent-web-search-routing ~/.claude/skills/
+# Proma 新版（推荐）：全局技能目录
+mkdir -p ~/.proma-community/default-skills
+cp -R agent-web-search-routing ~/.proma-community/default-skills/
+# Proma 新版：如需只装到某个工作区，也可复制到：
+# mkdir -p ~/.proma-community/agent-workspaces/<workspace>/skills
+# cp -R agent-web-search-routing ~/.proma-community/agent-workspaces/<workspace>/skills/
+# 旧架构（2025-08 前，仅兼容）才用：
+# mkdir -p ~/.proma/default-skills
+# cp -R agent-web-search-routing ~/.proma/default-skills/
 ```
 
 ### 2. 编辑渠道表（可选）
@@ -78,7 +94,7 @@ cp -r agent-web-search-routing ~/.proma-community/default-skills/
 └─────────────┘
 ```
 
-按引导安装缺失渠道即可。
+按引导安装缺失渠道即可。若问题属于口碑/评测/避雷且 Museon 缺失，Agent 应先征求你的同意，再自动安装；只有浏览器 OAuth/登录授权需要你操作。
 
 ## 工作原理
 
@@ -109,7 +125,7 @@ Tier 1  免费额度（Tavily/Brave/Museon/Agent Reach）
 Tier 2  按量付费（智谱等）          ← 克制使用
 ```
 
-### 社交口碑两阶段管线（v3.1 核心）
+### 社交口碑两阶段管线（v3.2 核心）
 
 搜索引擎（含 GPT/Claude 内置）抓不到社交平台原生内容，且不同工具排序差异大（实测同题前排重合率仅 6/10）。所以 W3 高分时：
 
@@ -132,9 +148,15 @@ Tier 2  按量付费（智谱等）          ← 克制使用
 ```
 agent-web-search-routing/
 ├── SKILL.md         # 决策逻辑（Agent 读取的核心）
+├── ONBOARDING.md    # 首次使用 5 分钟最小成功路径
 ├── channels.yaml    # 渠道注册表（用户可编辑增删）
 ├── INSTALL.md       # 详细安装指南
 ├── install.sh       # 一键安装脚本（自动探测 harness）
+├── install-museon.sh       # Museon 自动安装/授权辅助脚本
+├── install-agent-reach.sh  # Agent Reach 自动安装/doctor 检查脚本
+├── doctor.sh        # 渠道体检脚本（文本/JSON）
+├── scripts/test.sh  # 最小回归测试
+├── docs/new-user-dogfooding.md # 纯新用户体验回归 SOP
 ├── LICENSE          # MIT
 └── README.md        # 本文件
 ```
@@ -163,13 +185,13 @@ agent-web-search-routing/
 
 1. **决策与执行分离**：SKILL.md 是大脑，MCP/CLI 是手脚，不绑定具体工具
 2. **沉没成本优先**：已付费的订阅搜索先用，按量付费克制
-3. **不静默降级**：缺关键渠道（如 Museon）时明确告知质量影响，不假装搜了
-4. **新用户友好**：Museon 必装 + Agent Reach 推荐，分级引导不劝退
+3. **不静默降级**：缺关键渠道（如 Museon）时明确告知只能低置信兜底，不假装完成口碑调研
+4. **新用户友好**：Museon 先跑通 + Agent Reach 作为增强，分级引导不劝退
 5. **上下文经济**：复杂调研走子 Agent，主上下文不被搜索结果淹没
 
 ## Roadmap
 
-- [ ] 自动探测脚本（`doctor` 命令一键输出渠道体检）
+- [x] 自动探测脚本（`bash doctor.sh` / `bash doctor.sh --json`）
 - [ ] 更多 harness 的安装模板（Cursor、Windsurf、Cline）
 - [ ] 渠道质量反馈闭环（记录各渠道命中率，动态调权）
 - [ ] 多语言 README（English）

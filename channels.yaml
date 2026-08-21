@@ -77,12 +77,15 @@ channels:
     cost: "$0 免费档（跟踪 3 创作者）"
     required: true   # ← 必选渠道：W3 发现的核心通道
     install: |
-      # 1. 安装（需 Python 3.11+ 和 uv）
-      #    uv tool install "https://github.com/Museon-AI/museon-cli/releases/download/v0.5.3/museoncli-0.5.3-py3-none-any.whl"
-      # 2. 安装 Agent Skill：museoncli setup --agent <claude-code|codex|proma>
-      # 3. 授权（浏览器 OAuth）：museoncli auth start → auth finish --wait
-      # 4. 保存凭证：museoncli whoami 验证；API key 存入环境变量或 ~/.museon
-      #    最新版本号：https://github.com/Museon-AI/museon-cli/releases
+      # 用户同意后，Agent 应自动检查 python3/uv 并安装；只有浏览器 OAuth 需要用户操作。
+      # 可直接运行本 Skill 附带脚本：bash install-museon.sh
+      # 手动参考（当前已核实 v0.5.19）：
+      #   MUSEON_VERSION=0.5.19
+      #   uv tool install "https://github.com/Museon-AI/museon-cli/releases/download/v${MUSEON_VERSION}/museoncli-${MUSEON_VERSION}-py3-none-any.whl"
+      #   museoncli setup --agent auto
+      #   museoncli auth status/start/finish --wait
+      #   museoncli whoami
+      # 最新版本号：https://github.com/Museon-AI/museon-cli/releases
     note: |
       小红书（笔记作者/点赞/评论/封面）+ X + Reddit + LinkedIn 原生数据。
       无登录态依赖，首轮信息密度高。搜索引擎（含 GPT/Claude 内置）抓不到社交原生内容，
@@ -91,7 +94,7 @@ channels:
   agent-reach:
     name: "Agent Reach CLI (本地互联网路由器)"
     tier: 1
-    harness: ["claude-code", "codex", "generic-cli"]
+    harness: ["proma", "claude-code", "codex", "generic-cli"]
     capability: [W3, W4, W6, W2]
     w3_role: "verify"   # W3 第2阶段·核验（读原帖/评论取证）
     cost: "免费（开源 CLI，零 API 费用）"
@@ -142,7 +145,7 @@ priority_default:
   - tier: 1        # 免费渠道次之
   - tier: 2        # 按量付费兜底
 
-# W3 两阶段管线组合（v3.1 核心：发现 + 核验 互补，不替代）
+# W3 两阶段管线组合（v3.2 核心：发现 + 核验 互补，不替代）
 w3_pipeline:
   discover: "museon"        # 第1阶段·发现：高召回原生样本
   verify: "agent-reach"     # 第2阶段·核验：读原帖/评论取证
