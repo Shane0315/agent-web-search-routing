@@ -11,10 +11,30 @@ log() { printf '👉 %s\n' "$*"; }
 ok() { printf '✅ %s\n' "$*"; }
 warn() { printf '⚠️  %s\n' "$*" >&2; }
 die() { printf '❌ %s\n' "$*" >&2; exit 1; }
-
 need() { command -v "$1" >/dev/null 2>&1; }
 
+add_user_bin_path() {
+  local user_base bin_dir
+  bin_dir="$HOME/.local/bin"
+
+  # Prefer Python's user base, because uv/pip tools may install there on some systems.
+  if need python3; then
+    user_base="$(python3 - <<'PY' 2>/dev/null || true
+import site
+print(site.getuserbase())
+PY
+)"
+    [ -n "$user_base" ] && bin_dir="$user_base/bin:$bin_dir"
+  fi
+
+  # Common uv/cargo locations.
+  bin_dir="$HOME/.cargo/bin:$bin_dir"
+  export PATH="$bin_dir:$PATH"
+  hash -r 2>/dev/null || true
+}
+
 install_uv() {
+  add_user_bin_path
   if need uv; then
     ok "uv 已存在：$(command -v uv)"
     return 0
@@ -22,15 +42,17 @@ install_uv() {
   if need curl; then
     log "未找到 uv，正在使用官方脚本安装到用户目录..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
   elif need wget; then
     log "未找到 uv，正在使用官方脚本安装到用户目录..."
     wget -qO- https://astral.sh/uv/install.sh | sh
-    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
   else
     die "缺少 curl/wget，无法自动安装 uv。请先安装 curl 或 uv 后重试。"
   fi
-  need uv || die "uv 安装后仍不可用；请检查 ~/.local/bin 是否在 PATH 中。"
+  add_user_bin_path
+  # shellcheck disable=SC1091
+  [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
+  add_user_bin_path
+  need uv || die "uv 安装后仍不可用；请检查 ~/.local/bin 或 Python user-base/bin 是否在 PATH 中。"
   ok "uv 安装完成：$(command -v uv)"
 }
 
@@ -44,12 +66,13 @@ PY
 }
 
 install_museon() {
+  add_user_bin_path
   if need museoncli; then
     ok "museoncli 已存在：$(command -v museoncli)"
   else
     log "正在安装 Museon CLI ${MUSEON_VERSION}..."
     uv tool install "$WHEEL_URL"
-    export PATH="$HOME/.local/bin:$PATH"
+    add_user_bin_path
   fi
   need museoncli || die "museoncli 安装后仍不可用；请检查 uv tool bin 目录是否在 PATH 中。"
   ok "museoncli 可用：$(command -v museoncli)"
@@ -88,11 +111,13 @@ auth_if_needed() {
 }
 
 verify() {
+  add_user_bin_path
   museoncli whoami >/dev/null 2>&1 || die "Museon whoami 仍失败；请完成授权后重试。"
   ok "验证通过：museoncli whoami 成功。"
 }
 
 main() {
+  add_user_bin_path
   check_python
   install_uv
   install_museon

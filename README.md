@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Harness](https://img.shields.io/badge/harness-Codex%20%7C%20Claude%20%7C%20Proma%20%7C%20any-blue)](#)
-[![Skill Version](https://img.shields.io/badge/version-3.2.0-green)](#)
+[![Skill Version](https://img.shields.io/badge/version-3.2.1-green)](#)
 
 ## 为什么需要它？
 
@@ -157,6 +157,7 @@ agent-web-search-routing/
 ├── doctor.sh        # 渠道体检脚本（文本/JSON）
 ├── scripts/test.sh  # 最小回归测试
 ├── docs/new-user-dogfooding.md # 纯新用户体验回归 SOP
+├── docs/doctor-json.md         # doctor.sh --json 字段说明
 ├── LICENSE          # MIT
 └── README.md        # 本文件
 ```

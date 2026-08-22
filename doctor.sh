@@ -15,10 +15,19 @@ elif [ "$#" -gt 0 ]; then
   exit 2
 fi
 
+if ! command -v python3 >/dev/null 2>&1; then
+  if [ "$JSON" = "1" ]; then
+    printf '{"schema_version":1,"ok":false,"status":"error","error":"python3_required","message":"doctor.sh 和 Museon 安装流程都需要 python3。请先安装 Python 3.11+。"}\n'
+  else
+    echo "❌ doctor.sh 需要 python3；Museon 安装流程也需要 Python 3.11+。请先安装 python3 后重试。" >&2
+  fi
+  exit 127
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_NAME="agent-web-search-routing"
 SKILL_NAME="web-search-routing"
-EXPECTED_VERSION="3.2.0"
+EXPECTED_VERSION="3.2.1"
 
 execute_capture() {
   local output

@@ -1,4 +1,4 @@
-# web-search-routing 安装指南（v3.2.0）
+# web-search-routing 安装指南（v3.2.1）
 
 让 Skill 在任何 harness（ChatGPT/Codex、Claude Code、Proma 等）里**开箱即用**。
 核心：Skill 会自动探测环境并选择渠道；**Museon 必装 + Agent Reach 推荐装**，

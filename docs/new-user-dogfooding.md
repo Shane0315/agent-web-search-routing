@@ -216,7 +216,7 @@ HOME="$TEST_HOME" PATH="/usr/bin:/bin:/usr/sbin:/sbin" bash doctor.sh --json | p
 在本次回归中，关键输出如下（绝对路径是临时目录，不同机器会不同）：
 
 ```text
-📋 web-search-routing 渠道体检（v3.2.0）
+📋 web-search-routing 渠道体检（v3.2.1）
 状态：required_missing
 
 渠道工具：

@@ -264,3 +264,5 @@ agent-reach doctor --json
 - 想了解完整安装细节：看 [`INSTALL.md`](INSTALL.md)
 - 想理解 Agent 如何路由和打分：看 [`SKILL.md`](SKILL.md)
 - 想调整渠道：编辑 [`channels.yaml`](channels.yaml)
+- 想解析 doctor JSON：看 [`docs/doctor-json.md`](docs/doctor-json.md)
+- 想回归新用户体验：看 [`docs/new-user-dogfooding.md`](docs/new-user-dogfooding.md)

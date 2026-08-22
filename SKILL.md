@@ -7,7 +7,7 @@ description: |
   新用户自动引导安装缺失渠道 → 复杂调研用子 Agent 搜索提升质量。
   触发词：搜索/查资料/联网/口碑/评测/最新/对比/调研/web search/research。
 metadata:
-  version: "3.2.0"
+  version: "3.2.1"
 ---
 
 # Web Search Routing
