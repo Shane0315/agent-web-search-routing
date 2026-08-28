@@ -401,9 +401,10 @@ if [ "$JSON" = "1" ]; then
     "$(printf '%s' "$AGENT_REACH_XHS_BACKEND" | json_escape)"
   printf '"config_clues":{"tavily":%s,"brave":%s,"zhipu":%s},' \
     "$(to_bool "$TAVILY_FOUND")" "$(to_bool "$BRAVE_FOUND")" "$(to_bool "$ZHIPU_FOUND")"
-  printf '"required_missing":%s,' "$(json_str_array "${REQUIRED_MISSING[@]}")"
-  printf '"optional_missing":%s,' "$(json_str_array "${OPTIONAL_MISSING[@]}")"
-  printf '"missing":%s,' "$(json_str_array "${REQUIRED_MISSING[@]}" "${OPTIONAL_MISSING[@]}")"
+  # 数组为空时 "${ARR[@]}" 在 set -u 下会 unbound；用 ${ARR[@]:-} 兜底
+  printf '"required_missing":%s,' "$(json_str_array ${REQUIRED_MISSING[@]+"${REQUIRED_MISSING[@]}"})"
+  printf '"optional_missing":%s,' "$(json_str_array ${OPTIONAL_MISSING[@]+"${OPTIONAL_MISSING[@]}"})"
+  printf '"missing":%s,' "$(json_str_array ${REQUIRED_MISSING[@]+"${REQUIRED_MISSING[@]}"} ${OPTIONAL_MISSING[@]+"${OPTIONAL_MISSING[@]}"})"
   printf '"warnings":%s,' "$(json_str_array "${WARNINGS[@]}")"
   printf '"hints":%s' "$(json_str_array "${HINTS[@]}")"
   printf '}\n'

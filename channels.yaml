@@ -43,14 +43,16 @@ channels:
     tier: 1
     harness: ["proma"]
     capability: [W1, W2, W4, W6, W7]
-    cost: "1000 credits/月（免费，月度重置）"
+    cost: "1000 credits/月（免费，月度重置；超出 $0.008/credit）"
     required: false
+    tool_ref: "WebSearch；参数 query/maxResults(日常3-5)/searchDepth/includeDomains；返回 answer 概要 + results[]"
     install: |
       # 1. 注册 https://app.tavily.com
       # 2. 创建 API Key（tvly-xxx）
       # 3. 配置到 Proma 的 chat-tools.json：
       #    { "toolCredentials": { "web-search": { "useCloud": "false", "apiKey": "tvly-xxx" } } }
-    note: "英文事实/通用搜索首选，免费额度充足"
+      #    useCloud 必须 false：true 走云端共享池会报 402
+    note: "英文事实/通用搜索首选，免费额度充足；W8 实操排障弱（1 分），不首发"
 
   brave:
     name: "Brave Search (MCP)"
@@ -59,6 +61,7 @@ channels:
     capability: [W1, W2, W4, W6, W7]
     cost: "$5 credits/月（免费，月度重置）"
     required: false
+    tool_ref: "工具名 brave_web_search；W7 用 search_domain_filter/Goggles 指定官网；llm_context 免费档 400 不可用"
     install: |
       # 1. 注册 https://api-dashboard.search.brave.com/register
       # 2. 创建 API Key（BSAxxx）
@@ -66,7 +69,8 @@ channels:
       #    npx -y @brave/brave-search-mcp-server --transport stdio
       #    env.BRAVE_API_KEY=BSAxxx
       #    代理环境（国内必需）：NODE_USE_ENV_PROXY=1 + HTTPS_PROXY/HTTP_PROXY/ALL_PROXY
-    note: "英文/深度搜索强；免费档不支持 llm_context（400 OPTION_NOT_IN_PLAN）"
+      #    注意：需确认本地代理（如 Clash）已启动，否则 fetch failed
+    note: "英文/深度搜索强；免费档不支持 llm_context（400 OPTION_NOT_IN_PLAN）；深度抓正文用浏览器"
 
   museon:
     name: "Museon CLI (社交平台原生数据，含小红书)"
@@ -132,15 +136,19 @@ channels:
     tier: 2
     harness: ["proma", "claude-code", "codex", "generic-mcp"]
     capability: [W1, W2, W4, W5, W7]
-    cost: "按量：0.01-0.05 元/次"
+    cost: "按量：Std 0.01 元 / Pro 0.03 元 / Quark·Sogou 0.05 元（每次）"
     required: false
+    tool_ref: |
+      官方 MCP 工具 webSearchStd/Pro/Quark/Sogou；社区封装 npx -y cc-zhipu-web-search 时工具名为 web-search，
+      参数 query/search_engine(search_std/pro/quark/sogou)/count(3-8)/content_size/search_domain_filter/search_recency_filter。
+      中文深度用 Pro/Quark（Std 相关性弱）；国内直连无需代理。
     install: |
       # 1. 注册 https://open.bigmodel.cn
       # 2. 创建 API Key（xxxx.xxxx）
       # 3. mcp.json 添加（type 必须是 http，不是 sse）：
       #    { "type": "http",
       #      "url": "https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp?Authorization=<你的Key>" }
-    note: "中文搜索/深度报告强；国内直连无需代理"
+    note: "中文搜索/深度报告强；国内直连无需代理；W8 实操排障弱（1 分），经验类只作官方信息补充"
 
 # 默认优先级（Skill 决策时参考；用户可在自己环境覆盖）
 # v3.3 起不再是固定按 tier 排序：经验类问题（W3≥2 或 W8≥2）社交原生渠道首发。

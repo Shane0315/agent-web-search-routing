@@ -340,6 +340,63 @@ agent-reach doctor --json
 
 所有渠道定义、能力覆盖、成本档位、安装方式见 **`channels.yaml`**（本 Skill 同目录）。用户编辑此文件即可增删渠道，无需改 SKILL.md 逻辑。
 
+## 附录 A：渠道 × 维度能力矩阵（0-3）
+
+决策载体是 LLM 模拟打分（非真代码计算），分数粒度 0-3 + 语义锚点最可靠。
+
+| 渠道 | W1事实 | W2时效 | W3口碑 | W4深度 | W5中文 | W6英文 | W7权威 | W8实操 |
+|------|--------|--------|--------|--------|--------|--------|--------|--------|
+| GPT/Claude 内置搜索 (Tier0) | 3 | 2 | 1 | 2 | 2 | 3 | 2 | 1 |
+| Proma WebSearch (Tavily) | 3 | 2 | 1 | 2 | 2 | 3 | 2 | 1 |
+| Brave Search | 3 | 2 | 1 | **3** | 1 | **3** | 2 | 1 |
+| 智谱 Web Search | 3 | 2 | 1 | **3** | **3** | 2 | 2 | 1 |
+| 小红书 (Museon, `--platform xhs`) | 1 | **3** | **3** | 1 | **3** | 1 | 1 | **3** |
+| X/Reddit (Museon) | 1 | **3** | **3** | 1 | 1 | **3** | 1 | 2 |
+| 浏览器 (chrome-devtools/内置) | 3 | 3 | 2 | 3 | 3 | 3 | 2 | 2 |
+
+> 通用网页搜索（内置/Tavily/Brave/智谱）对 W8 只有 1 分：SEO 内容对实操排障基本不可用，不能作为经验类问题首发。
+
+## 附录 B：渠道调用速查（工具名 / 参数 / 实测坑）
+
+### Proma WebSearch（Tavily 个人直连，英文事实首选）
+
+- 工具名：`WebSearch`；参数：`query`、`maxResults`（1-10，日常 3-5）、`searchDepth`、`includeDomains`
+- 返回 `answer`（AI 概要）+ `results[]`，自带概要省 token
+- 免费 1000 credits/月（月度重置）；超出 $0.008/credit
+- 报 402：检查 `chat-tools.json` 中 `web-search` 的 `useCloud` 为 `false`（`true` 走云端共享池会配额报错）
+
+### 智谱 Web Search（中文事实/深度首选，国内直连无需代理）
+
+- MCP 工具（Proma 实测形态）：`mcp__zhipu_web_search__webSearchStd/Pro/Quark/Sogou`；社区封装 `npx -y cc-zhipu-web-search` 时工具名为 `web-search`
+- 引擎/价格：Std=0.01 元（简单事实）、**Pro=0.03 元（中文深度首选，Std 相关性弱）**、Quark/Sogou=0.05 元（垂直）
+- 参数：`count`（3-8）、`content_size`（low/medium/high）、`search_recency_filter`、`search_domain_filter`
+- MCP 接入 type 必须是 `http`（不是 sse）；无工具先重启
+
+### Brave Search（英文/深度，需代理）
+
+- MCP：`npx -y @brave/brave-search-mcp-server`，工具名 `brave_web_search`；env 需要 `BRAVE_API_KEY` + `NODE_USE_ENV_PROXY=1` + `HTTPS_PROXY/HTTP_PROXY/ALL_PROXY`（国内必需）
+- `brave_llm_context` **免费档不支持**（400 OPTION_NOT_IN_PLAN）；深度抓正文改用浏览器或 `brave_web_search` + 手动开 URL
+- W7 权威场景用 `search_domain_filter`/Goggles 指定官网域名
+
+### Museon CLI（社交口碑 W3 + 实操经验 W8 首发）
+
+```bash
+# 常用入口（以本机 museoncli 实时 help/schema 为准）
+museoncli research +social-media-search --platform xhs --intent keyword-search \
+  --query "<关键词>" --limit 10
+# W8 排障优先近期帖：--time-window month（或 week）；--sort relevance/latest/popular/hot/rising
+# 社区搜索：museoncli research +community-search
+```
+
+- 平台：`xhs`（小红书）/`x`/`tiktok`/`instagram`/`youtube`；中文经验场景首发 `xhs`，英文场景 Reddit/X
+- 返回原生数据：作者/点赞/收藏/评论/封面/时间/URL；免费档 $0（跟踪 3 个创作者）
+- 首次使用先 `museoncli schema research +social-media-search` 看最新参数；401 走 `museoncli auth status/start/finish --wait`
+
+### 浏览器兜底
+
+- 打开 Google/Bing/小红书网页版搜索，或直接开具体 URL 抓正文
+- 适用：所有工具失败、需要登录态页面、需要原文、复杂 L4 调研；W8 缺 Museon 时优先手动搜小红书（`https://www.xiaohongshu.com/search_result?keyword=<关键词>`）
+
 ## Proma 路径说明
 
 - Proma 新版主路径：`~/.proma-community/default-skills/` 和 `~/.proma-community/agent-workspaces/*/skills/`。
@@ -347,20 +404,23 @@ agent-reach doctor --json
 
 ## 省成本原则
 
-1. 订阅模式：Tier0 内置优先（沉没成本，边际≈0）。
-2. API 模式：Tier1 免费优先，Tier2 按量兜底。
-3. 组合克制：只调覆盖高分维度的渠道，不做“全上”。
-4. 控制结果量：限制返回数量、优先摘要、避免整页抓取。
+1. 纯事实类（W3/W8≤1）：订阅模式 Tier0 内置优先（沉没成本）；API 模式 Tier1 免费优先（Tavily → Brave → 智谱），Tier2 按量兜底。
+2. 经验类（W3/W8≥2）：Museon（小红书）首发，内置/网页搜索只补官方信息——不可用的免费结果比按量付费更浪费。
+3. 组合克制：只调覆盖高分维度的渠道，不做“全上”；但 W3/W8 高分时 Museon 不可省略、不可被通用搜索替代。
+4. 控制结果量：`maxResults`/`count` 日常 3-5（深度调研才 8-10）；优先摘要接口，避免整页抓取。
 5. 子 Agent 搜索：复杂调研让子 Agent 消化，主 Agent 只收总结。
-6. 两阶段按需：W3=2 不强制 Agent Reach（省时）；W3=3 才完整三阶段。
+6. 两阶段按需：W3=2/W8=2 不强制 Agent Reach（省时）；W3=3/W8=3 才完整三阶段。
 
 ## 故障排查速查
 
 | 症状 | 原因 | 处理 |
 |------|------|------|
 | 402 Insufficient quota | WebSearch 走了云端共享池 | useCloud:false + Tavily key |
-| 智谱 MCP 无工具 | 未重启 / type 配错 | 重启；type 必须 http |
-| Brave fetch failed | Node 不走代理或仅有 npx 但未配置 key/MCP | 配置 BRAVE_API_KEY + Brave MCP；必要时 NODE_USE_ENV_PROXY=1 |
+| 智谱 MCP 无工具 | 未重启 / type 配错 | 重启；MCP type 必须是 http（不是 sse） |
+| 智谱中文结果相关性差 | 用了 Std 引擎 | 深度场景改用 Pro/Quark，或加 `search_domain_filter` |
+| Brave fetch failed | Node 不走代理或仅有 npx 但未配置 key/MCP | 配置 BRAVE_API_KEY + `NODE_USE_ENV_PROXY=1` + 代理 env；确认本地代理已启动 |
+| Brave llm_context 400 | 免费档不含该端点 | 不用 llm_context；改 brave_web_search 或浏览器抓正文 |
+| Tavily 免费额度用尽 | 1000 credits/月用完 | 降级智谱（中文）/Brave（英文）；等月度重置 |
 | Museon 401 / whoami 失败 | OAuth 过期或未授权 | `museoncli auth status/start/finish --wait`，授权后复测 whoami |
 | Agent Reach command not found | CLI 未装 | 经用户同意后按官方 pipx/zip 自动安装 |
 | Agent Reach 小红书 warn | 登录态/OpenCLI 未激活 | 以 `doctor --json` 输出为准，完成 Chrome/OpenCLI 登录后复测 |
