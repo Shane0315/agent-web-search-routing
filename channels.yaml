@@ -8,12 +8,12 @@
 #   tier1 = 免费额度渠道（注册即有免费额度）
 #   tier2 = 按量付费渠道（按次/按 token 计费）
 #
-# capability: 该渠道能覆盖的能力维度（W1-W7，见 SKILL.md）
+# capability: 该渠道能覆盖的能力维度（W1-W8，见 SKILL.md）
 # required:   是否必选渠道（缺失时 Skill 会引导用户安装，而不是静默降级）
 # w3_role:    W3 两阶段管线中的角色（discover=发现 / verify=核验 / confirm=确认）
 # =====================================================
 
-version: "3.2.1"
+version: "3.3.0"
 
 channels:
   # ───────────── Tier 0：订阅内置搜索（沉没成本）─────────────
@@ -25,7 +25,7 @@ channels:
     cost: "订阅内，边际成本≈0"
     required: false
     detect: "环境工具列表含 web_search / web_search_exa（Codex/ChatGPT 订阅自动拥有）"
-    note: "搜索引擎索引级，抓不到社交平台原生内容（W3 弱）"
+    note: "搜索引擎索引级，抓不到社交平台原生内容（W3 弱）；对 W8 实操排障/生活经验类问题命中率低，SEO 内容常不可用"
 
   claude-web-search:
     name: "Claude 内置搜索 (Claude 订阅)"
@@ -35,7 +35,7 @@ channels:
     cost: "订阅内，边际成本≈0"
     required: false
     detect: "环境工具列表含 WebSearch"
-    note: "同样抓不到社交平台原生内容（W3 弱）"
+    note: "同样抓不到社交平台原生内容（W3 弱）；W8 实操排障类问题不应作为首发渠道"
 
   # ───────────── Tier 1：免费额度渠道 ─────────────
   tavily:
@@ -69,10 +69,10 @@ channels:
     note: "英文/深度搜索强；免费档不支持 llm_context（400 OPTION_NOT_IN_PLAN）"
 
   museon:
-    name: "Museon CLI (社交平台原生数据)"
+    name: "Museon CLI (社交平台原生数据，含小红书)"
     tier: 1
     harness: ["proma", "claude-code", "codex", "generic-cli"]
-    capability: [W3]
+    capability: [W3, W8]   # W3 口碑发现 + W8 实操经验/排障解法（小红书首发）
     w3_role: "discover"   # W3 第1阶段·发现（高召回原生样本）
     cost: "$0 免费档（跟踪 3 创作者）"
     required: true   # ← 必选渠道：W3 发现的核心通道
@@ -89,14 +89,17 @@ channels:
     note: |
       小红书（笔记作者/点赞/评论/封面）+ X + Reddit + LinkedIn 原生数据。
       无登录态依赖，首轮信息密度高。搜索引擎（含 GPT/Claude 内置）抓不到社交原生内容，
-      W3 场景不可替代。
+      W3 场景不可替代。v3.3 起同时是 W8 实操排障/生活经验类问题的首发渠道：
+      国产 App 设置、账号/权限/通知故障、生活服务实操等问题，小红书真人踩坑帖的
+      解法命中率显著高于 SEO 网页搜索（实测：企业微信好友请求收不到等问题，
+      通用搜索结果不可用，小红书可查到真实原因与设置路径）。
 
   agent-reach:
     name: "Agent Reach CLI (本地互联网路由器)"
     tier: 1
     harness: ["proma", "claude-code", "codex", "generic-cli"]
-    capability: [W3, W4, W6, W2]
-    w3_role: "verify"   # W3 第2阶段·核验（读原帖/评论取证）
+    capability: [W3, W4, W6, W2, W8]
+    w3_role: "verify"   # W3 第2阶段·核验（读原帖/评论取证；W8 打开高赞解法帖核实步骤）
     cost: "免费（开源 CLI，零 API 费用）"
     required: false     # 推荐装：核验增强（不是硬必装，避免劝退新用户）
     install: |
@@ -139,11 +142,23 @@ channels:
       #      "url": "https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp?Authorization=<你的Key>" }
     note: "中文搜索/深度报告强；国内直连无需代理"
 
-# 默认优先级（按成本档位，Skill 决策时参考；用户可在自己环境覆盖）
+# 默认优先级（Skill 决策时参考；用户可在自己环境覆盖）
+# v3.3 起不再是固定按 tier 排序：经验类问题（W3≥2 或 W8≥2）社交原生渠道首发。
 priority_default:
-  - tier: 0        # 订阅内置搜索优先（沉没成本）
-  - tier: 1        # 免费渠道次之
-  - tier: 2        # 按量付费兜底
+  factual:                # 纯事实/时效/专业类（W3≤1 且 W8≤1）：按成本档走
+    - tier: 0             # 订阅内置搜索优先（沉没成本）
+    - tier: 1             # 免费渠道次之
+    - tier: 2             # 按量付费兜底
+  experiential:           # 口碑/实操经验类（W3≥2 或 W8≥2）：社交原生优先
+    - museon              # 小红书等社交原生数据首发（通用搜索抓不到、SEO 结果不可用）
+    - tier: 0             # 内置搜索补官方规则/事实（不是首发）
+    - tier: 1             # 免费网页渠道补充
+    - tier: 2             # 按量付费兜底
+
+# W8 实操排障/生活经验的首发平台偏好（中文语境默认小红书）
+experiential_platforms:
+  zh: ["xhs", "bilibili", "zhihu"]   # 国产 App/生活服务/职场场景：小红书 > B站 > 知乎
+  en: ["reddit", "x", "youtube"]    # 英文场景：Reddit > X > YouTube
 
 # W3 两阶段管线组合（v3.2 核心：发现 + 核验 互补，不替代）
 w3_pipeline:

@@ -34,7 +34,7 @@ import pathlib
 import re
 
 root = pathlib.Path('.')
-expected = '3.2.1'
+expected = '3.3.0'
 checks = {
     'SKILL.md': [r'(?m)^\s*version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?'],
     'channels.yaml': [r'(?m)^version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?'],
@@ -64,17 +64,17 @@ except Exception:
     raise SystemExit(1)
 with open('channels.yaml', encoding='utf-8') as f:
     data = yaml.safe_load(f)
-assert data['version'] == '3.2.1'
+assert data['version'] == '3.3.0'
 assert 'channels' in data
 assert 'museon' in data['channels']
 assert data['channels']['museon']['required'] is True
 PY
 then
   pass "channels.yaml parses with PyYAML"
-elif command -v ruby >/dev/null 2>&1 && ruby -e 'require "yaml"; data=YAML.load_file("channels.yaml"); raise unless data["version"] == "3.2.1" && data.key?("channels") && data["channels"].key?("museon")'; then
+elif command -v ruby >/dev/null 2>&1 && ruby -e 'require "yaml"; data=YAML.load_file("channels.yaml"); raise unless data["version"] == "3.3.0" && data.key?("channels") && data["channels"].key?("museon")'; then
   pass "channels.yaml parses with ruby YAML"
 else
-  grep -Eq '^version: "3.2.1"$' channels.yaml
+  grep -Eq '^version: "3.3.0"$' channels.yaml
   grep -Eq '^channels:' channels.yaml
   grep -Eq '^priority_default:' channels.yaml
   grep -Eq 'museon:' channels.yaml
@@ -90,7 +90,7 @@ import json, subprocess
 raw = subprocess.check_output(['bash', 'doctor.sh', '--json'], text=True)
 data = json.loads(raw)
 assert data['schema_version'] == 1
-assert data['skill_version'] == '3.2.1'
+assert data['skill_version'] == '3.3.0'
 assert data['status'] in {'required_missing', 'optional_missing', 'warnings', 'w3_ready', 'ok'}
 assert set(data['missing']) == set(data['required_missing']) | set(data['optional_missing'])
 if data['required_missing']:

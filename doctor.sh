@@ -27,7 +27,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_NAME="agent-web-search-routing"
 SKILL_NAME="web-search-routing"
-EXPECTED_VERSION="3.2.1"
+EXPECTED_VERSION="3.3.0"
 
 execute_capture() {
   local output
