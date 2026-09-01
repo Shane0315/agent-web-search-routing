@@ -1,6 +1,6 @@
 # Agent Web Search Routing
 
-> 给任何 AI Agent 的「联网搜索决策大脑」：探测环境 → 7 维打分判断信息需求 → 成本自适应选渠道 → 社交口碑两阶段管线 → 复杂调研自动委派子 Agent。
+> 给任何 AI Agent 的「联网搜索决策大脑」：探测环境 → 8 维打分判断信息需求 → 成本自适应选渠道 → 社交口碑两阶段管线 → 复杂调研自动委派子 Agent。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Harness](https://img.shields.io/badge/harness-Codex%20%7C%20Claude%20%7C%20Proma%20%7C%20any-blue)](#)
@@ -19,7 +19,7 @@
 
 ## 核心特性
 
-- 🧠 **7 维信息需求打分**：事实/时效/真实口碑/深度/中文/英文/权威（0-3 分 + 语义锚点）
+- 🧠 **8 维信息需求打分**：事实/时效/真实口碑/深度/中文/英文/权威/实操排障（0-3 分 + 语义锚点）
 - 💰 **成本自适应路由**：订阅内置（Tier 0）→ 免费额度（Tier 1）→ 按量付费（Tier 2），沉没成本优先
 - 🆓 **零成本自建渠道（v3.4 可选）**：一键脚本部署本地 SearXNG，无额度上限无 API Key，频繁搜索用户的额度焦虑解药
 - 🔍 **社交口碑两阶段管线**：Museon 高召回发现 → Agent Reach 原帖/评论核验 → 官方文档确认
@@ -98,6 +98,35 @@ cp -R agent-web-search-routing ~/.proma-community/default-skills/
 
 按引导安装缺失渠道即可。若问题属于口碑/评测/避雷且 Museon 缺失，Agent 应先征求你的同意，再自动安装；只有浏览器 OAuth/登录授权需要你操作。
 
+## 本次更新（v3.4.0）
+
+> 零成本自建搜索渠道。完整日志见 [`CHANGELOG.md`](CHANGELOG.md)。
+
+如果你搜得频繁，Tavily / Firecrawl / Brave 的月度免费额度很快就不够用。v3.4 新增一个
+**纯可选**的本地 SearXNG 渠道：$0、无额度上限、无 API Key、数据不出本机。
+
+```bash
+bash install-searxng.sh     # 一键部署（可让 Agent 代跑，全程无人值守）
+```
+
+脚本自动完成源码安装、Python 3.12 环境、开启 JSON API、**代理自动探测**、开机自启、
+CLI 封装和健康验证；已安装过可直接重跑（幂等）。装完就能用：
+
+```bash
+searxng.sh "查询词"              # 精简 JSON（Agent 友好）
+searxng.sh "!github 关键词"    # bang 垂直检索，其他渠道做不到
+```
+
+三个关键边界：
+
+- **不装不影响任何现有路径**。体检报告里它只进 `optional_missing`，不影响 `ok`，
+  Agent 也不会主动向你推销——只在你表达额度紧张时才提。
+- **新用户不要先装它**。最短路径仍然是「装 Skill → 装 Museon → 跑通一次 W3 口碑查询」。
+- **它不能替代 Museon + Agent Reach**。SearXNG 是通用网页搜索，抵不到小红书/X/Reddit
+  原生内容，W3 口碑与 W8 实操排障仍由社交渠道负责。
+
+另外修正了 README 遗留的「7 维打分」描述（v3.3 起已为 8 维），并把 `firecrawl` 正式录入渠道表。
+
 ## 工作原理
 
 ### 两级流程
@@ -172,6 +201,7 @@ agent-web-search-routing/
 ├── scripts/test.sh  # 最小回归测试
 ├── docs/new-user-dogfooding.md # 纯新用户体验回归 SOP
 ├── docs/doctor-json.md         # doctor.sh --json 字段说明
+├── CHANGELOG.md     # 版本更新日志
 ├── LICENSE          # MIT
 └── README.md        # 本文件
 ```
