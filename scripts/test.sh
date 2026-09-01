@@ -41,6 +41,7 @@ checks = {
     'SKILL.md': [r'(?m)^\s*version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?'],
     'channels.yaml': [r'(?m)^version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?'],
     'README.md': [r'version-([0-9]+\.[0-9]+\.[0-9]+)'],
+    'README.en.md': [r'version-([0-9]+\.[0-9]+\.[0-9]+)'],
     'INSTALL.md': [r'安装指南（v([0-9]+\.[0-9]+\.[0-9]+)）'],
     'doctor.sh': [r'EXPECTED_VERSION="([0-9]+\.[0-9]+\.[0-9]+)"'],
 }
@@ -143,6 +144,8 @@ grep -q '自动安装' SKILL.md
 grep -q 'install-searxng.sh' SKILL.md
 grep -q 'searxng-local' channels.yaml
 grep -q 'tier1_order' channels.yaml
+grep -q 'README.en.md' README.md
+grep -q 'README.md' README.en.md
 pass "documentation links and onboarding anchors present"
 
 echo

@@ -1,5 +1,7 @@
 # Agent Web Search Routing
 
+[简体中文](README.md) · **English**
+
 > 给任何 AI Agent 的「联网搜索决策大脑」：探测环境 → 8 维打分判断信息需求 → 成本自适应选渠道 → 社交口碑两阶段管线 → 复杂调研自动委派子 Agent。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -167,8 +169,6 @@ Tier 2  按量付费（智谱等）          ← 克制使用
 
 搜索引擎（含 GPT/Claude 内置）抓不到社交平台原生内容，且不同工具排序差异大（实测同题前排重合率仅 6/10）。所以 W3/W8 高分时：
 
-搜索引擎（含 GPT/Claude 内置）抓不到社交平台原生内容，且不同工具排序差异大（实测同题前排重合率仅 6/10）。所以 W3 高分时：
-
 ```
 第 1 阶段 · 发现    Museon（原生 API，高召回，含赞/评/藏数据）
         ↓ 挑 5-10 篇高互动/争议帖
@@ -203,7 +203,8 @@ agent-web-search-routing/
 ├── docs/doctor-json.md         # doctor.sh --json 字段说明
 ├── CHANGELOG.md     # 版本更新日志
 ├── LICENSE          # MIT
-└── README.md        # 本文件
+├── README.md        # 本文件
+└── README.en.md     # English README
 ```
 
 ## 渠道生态
@@ -239,9 +240,9 @@ agent-web-search-routing/
 ## Roadmap
 
 - [x] 自动探测脚本（`bash doctor.sh` / `bash doctor.sh --json`）
+- [x] 多语言 README（[English](README.en.md)）
 - [ ] 更多 harness 的安装模板（Cursor、Windsurf、Cline）
 - [ ] 渠道质量反馈闭环（记录各渠道命中率，动态调权）
-- [ ] 多语言 README（English）
 
 ## Contributing
 
