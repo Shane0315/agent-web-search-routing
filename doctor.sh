@@ -27,7 +27,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_NAME="agent-web-search-routing"
 SKILL_NAME="web-search-routing"
-EXPECTED_VERSION="3.3.0"
+EXPECTED_VERSION="3.4.0"
 
 execute_capture() {
   local output
@@ -271,6 +271,27 @@ if [ "$AGENT_REACH_INSTALLED" = "1" ] && [ "$AGENT_REACH_DOCTOR_OK" = "1" ] && [
   add_warning "Agent Reach 可用，但未读取到已激活的小红书 active_backend；核验能力可能受限，可能需要 Chrome 登录态或 OpenCLI 配置。"
 fi
 
+# ---- SearXNG 本地自建（v3.4，可选零成本渠道） ----
+SEARXNG_HEALTHY=0
+SEARXNG_ENDPOINT=""
+if [ -x "$HOME/.local/bin/searxng.sh" ] && "$HOME/.local/bin/searxng.sh" --health >/dev/null 2>&1; then
+  SEARXNG_HEALTHY=1
+  SEARXNG_ENDPOINT="${SEARXNG_BASE_URL:-http://127.0.0.1:8888}"
+else
+  # 封装脚本不存在时直接探端口（可能用其他方式部署）
+  searx_code="$(curl -s -m 5 --noproxy '*' -o /dev/null -w '%{http_code}' \
+    --get --data-urlencode "q=ping" --data-urlencode "format=json" \
+    "${SEARXNG_BASE_URL:-http://127.0.0.1:8888}/search" 2>/dev/null || echo 000)"
+  if [ "$searx_code" = "200" ]; then
+    SEARXNG_HEALTHY=1
+    SEARXNG_ENDPOINT="${SEARXNG_BASE_URL:-http://127.0.0.1:8888}"
+  fi
+fi
+if [ "$SEARXNG_HEALTHY" != "1" ]; then
+  add_optional_missing "searxng_local"
+  append_hint "SearXNG 本地自建是可选零成本通用搜索渠道（无额度上限，适合频繁搜索用户）；未安装不影响任何现有路径，无需立即安装。需要时运行 bash install-searxng.sh（Agent 可代跑）。"
+fi
+
 # ---- 配置线索：只做存在性/线索检查，不打印密钥值 ----
 TAVILY_FOUND=0
 for chat_tools in "$HOME/.proma-community/chat-tools.json" "$HOME/.proma/chat-tools.json"; do
@@ -401,6 +422,9 @@ if [ "$JSON" = "1" ]; then
     "$(printf '%s' "$AGENT_REACH_XHS_BACKEND" | json_escape)"
   printf '"config_clues":{"tavily":%s,"brave":%s,"zhipu":%s},' \
     "$(to_bool "$TAVILY_FOUND")" "$(to_bool "$BRAVE_FOUND")" "$(to_bool "$ZHIPU_FOUND")"
+  printf '"searxng":{"healthy":%s,"endpoint":%s},' \
+    "$(to_bool "$SEARXNG_HEALTHY")" \
+    "$(printf '%s' "$SEARXNG_ENDPOINT" | json_escape)"
   # 数组为空时 "${ARR[@]}" 在 set -u 下会 unbound；用 ${ARR[@]:-} 兜底
   printf '"required_missing":%s,' "$(json_str_array ${REQUIRED_MISSING[@]+"${REQUIRED_MISSING[@]}"})"
   printf '"optional_missing":%s,' "$(json_str_array ${OPTIONAL_MISSING[@]+"${OPTIONAL_MISSING[@]}"})"
@@ -454,6 +478,9 @@ echo "配置线索（不显示密钥值）："
 echo "  Tavily: $(warn_mark "$TAVILY_FOUND")"
 echo "  Brave:  $(warn_mark "$BRAVE_FOUND")"
 echo "  智谱:   $(warn_mark "$ZHIPU_FOUND")"
+echo
+echo "零成本自建渠道（可选）："
+echo "  SearXNG 本地: $(warn_mark "$SEARXNG_HEALTHY") $([ -n "$SEARXNG_ENDPOINT" ] && echo "${SEARXNG_ENDPOINT}（JSON API 正常）" || echo "未部署（bash install-searxng.sh，频繁搜索用户推荐）")"
 echo
 if [ "$WARNINGS_COUNT" -gt 0 ]; then
   echo "警告："

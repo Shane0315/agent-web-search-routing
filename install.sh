@@ -92,7 +92,7 @@ install_proma() {
 install_to() {
   local dest="$1"
   local required_files=(SKILL.md channels.yaml INSTALL.md ONBOARDING.md doctor.sh install.sh README.md LICENSE)
-  local optional_assets=(install-museon.sh install-agent-reach.sh scripts docs)
+  local optional_assets=(install-museon.sh install-agent-reach.sh install-searxng.sh scripts docs)
   if ! mkdir -p "$dest/$REPO"; then
     echo "❌ 无法创建目录 $dest/$REPO，安装中止。"
     return 1

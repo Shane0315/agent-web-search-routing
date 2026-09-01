@@ -1,4 +1,4 @@
-# web-search-routing 安装指南（v3.3.0）
+# web-search-routing 安装指南（v3.4.0）
 
 让 Skill 在任何 harness（ChatGPT/Codex、Claude Code、Proma 等）里**开箱即用**。
 核心：Skill 会自动探测环境并选择渠道；**Museon 必装 + Agent Reach 推荐装**，
@@ -121,6 +121,53 @@ agent-reach check-update
 
 > ⚠️ 小红书通道状态为 `warn`（登录态未验证）时，核验能力受限；
 > 需激活 Chrome 登录态后才能读原帖/评论。
+
+---
+
+## 二.7、SearXNG 本地自建（可选渠道，v3.4 新增：零成本通用搜索）
+
+> 作用：Tier1 内最优先的通用搜索渠道——**$0、无额度上限、无 API Key、本地运行**。
+> 适合频繁搜索、反复撞 Tavily/Firecrawl/Brave 月度免费额度的用户。聚合 Google/Bing/
+> 百度/360/Wikipedia + GitHub/StackOverflow/arXiv 垂直引擎，还支持 bang 垂直检索
+> （`!github` `!so` `!arxiv`——其他渠道做不到）。
+>
+> ⚠️ **纯可选**：不装它不影响 Skill 任何现有路径，只是多用一点额度。新用户建议先跑通
+> Museon（W3）主线，额度真紧张了再来装这个。它也**不能替代** Museon + Agent Reach 的
+> 社交口碑能力。
+
+**一键安装（推荐让 Agent 代跑，全程无人值守）**：
+
+```bash
+bash install-searxng.sh
+```
+
+脚本自动完成：clone 源码（~/searxng-src）→ uv venv（Python 3.12）→ 写配置
+（开 JSON API + 关 limiter + 随机 secret key）→ launchd 自启（崩溃自动拉起）→
+安装 `searxng.sh` / `websearch-free.sh` 封装 → 健康验证。可重复运行（幂等）。
+
+网络环境差异：
+
+```bash
+bash install-searxng.sh --no-proxy                        # 海外直连网络
+bash install-searxng.sh --proxy http://127.0.0.1:7890     # 国内代理（自动探测失败时指定）
+```
+
+装完即可用（无需改 channels.yaml，Skill 按探测结果自动路由）：
+
+```bash
+searxng.sh "查询词"            # 精简 JSON（Agent 友好）
+searxng.sh "查询词" --md       # Markdown 列表（人读友好）
+searxng.sh "!github searxng"   # bang 垂直检索
+searxng.sh --health            # 健康检查
+websearch-free.sh "查询词" -k 3  # 零成本「搜索+拓3篇全文」；需本地 Jina Reader（可选）
+```
+
+> 💡 脚本已处理三个文档没写的坑：① 上游默认 `formats` 只有 html，必须显式加 `json`；
+> ② `limiter` 必须关，否则 API 被 403/429；③ SearXNG 内部用 httpx **不读 HTTP_PROXY
+> 环境变量**，代理必须写进 settings.yml 的 `outgoing.proxies`（国内网络必踩，否则所有引擎超时）。
+>
+> 启动日志里的 `wikidata 403` / `ahmia/torch loading failed` 是已禁用引擎的正常噪音，
+> 判断健康以 `searxng.sh --health` 为准。浏览器可直接开 http://127.0.0.1:8888 当日常搜索引擎。
 
 ---
 

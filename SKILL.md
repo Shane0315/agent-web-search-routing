@@ -7,7 +7,7 @@ description: |
   新用户自动引导安装缺失渠道 → 复杂调研用子 Agent 搜索提升质量。
   触发词：搜索/查资料/联网/口碑/评测/最新/对比/调研/web search/research。
 metadata:
-  version: "3.3.0"
+  version: "3.4.0"
 ---
 
 # Web Search Routing
@@ -15,7 +15,7 @@ metadata:
 ## 定位
 
 决定联网搜索时「选哪个渠道、如何组合、如何省成本、如何保质量」。
-核心原则：**能力分层（W1-W7）决定需求，成本档位（Tier0/1/2）决定渠道，环境探测决定可用性。**
+核心原则：**能力分层（W1-W8）决定需求，成本档位（Tier0/1/2）决定渠道，环境探测决定可用性。**
 
 > 👋 **首次使用先读 [`ONBOARDING.md`](ONBOARDING.md)**：它面向第一次上手的用户，讲清 5 分钟最小成功路径、渠道体检报告、未装 Museon/Agent Reach 的质量损失和最短验证问题。本文件是 Agent 的决策大脑；首次安装与体验引导优先链接到 ONBOARDING.md。
 
@@ -28,7 +28,7 @@ metadata:
   → Step 1 判断复杂度（简单→快速路径；复杂→打分）
   → Step 1.5 歧义澄清（多义词先向用户确认一句）
   → Step 2 8 维打分（W1-W8）
-  → Step 3 成本自适应选渠道（经验类问题：社交原生渠道优先于通用网页搜索）
+  → Step 3 成本自适应选渠道（v3.4：searxng-local 可用时 Tier1 首选；经验类：社交原生首发）
   → Step 4 W3 两阶段管线（Museon 发现 → Agent Reach 核验 → 官方验证）
   → Step 5 执行（复杂调研 → 子 Agent 搜索）
   → Step 6 质量提升提示（告知用户如何增强当前 harness）
@@ -47,17 +47,22 @@ metadata:
 3. **社交渠道检测**（W3 关键）：
    - `museoncli whoami` 可用？→ Museon 已装且已授权。
    - `agent-reach doctor --json` 可用？→ Agent Reach 已装；再以 JSON 中的 `active_backend`/通道状态为准。
-4. **运行 `bash doctor.sh` 或 `bash doctor.sh --json`**（如果本 Skill 目录中存在）。JSON 状态语义：
+4. **零成本自建渠道检测**（v3.4，可选增强，不阻塞任何路径）：
+   - `~/.local/bin/searxng.sh --health` 输出 ✅，或 `curl -m 5 --noproxy '*' 'http://127.0.0.1:8888/search?q=ping&format=json'` 返回 200？→ SearXNG 本地实例可用，进入 Tier1 首选。
+   - 不可用 → 记为 `optional_missing`，正常走 Tavily/Firecrawl/Brave/智谱；**不要静默降级，也不要向用户施压安装**——这是可选功能，仅在用户表达「搜索额度焦虑/频繁搜索想省钱」时才推荐（见 Step 0.5）。
+5. **运行 `bash doctor.sh` 或 `bash doctor.sh --json`**（如果本 Skill 目录中存在）。JSON 状态语义：
    - `required_missing`：缺 W3 必需 Museon；需要用户同意后自动安装。
-   - `optional_missing`：缺 Tavily/Brave/智谱/Agent Reach 等增强渠道；不是 `ok=false` 的原因。
+   - `optional_missing`：缺 Tavily/Brave/智谱/Agent Reach/SearXNG 等增强渠道；不是 `ok=false` 的原因。
    - `warnings`：已装但授权/登录态/版本可能有问题。
    - `w3_ready`：Museon 已可用，可执行 W3 发现。
+   - `searxng.healthy: true`：本地 SearXNG 零成本渠道可用。
    - `ok`：基础能力齐全且无警告。
-5. **输出「渠道体检报告」**（简短表格，告知用户当前能力与缺口；**每个 ❌ 后跟一行白话解读**）。
+6. **输出「渠道体检报告」**（简短表格，告知用户当前能力与缺口；**每个 ❌ 后跟一行白话解读**）。
 
 ```text
 ┌ 渠道体检报告 ┐
 │ 内置搜索:  ✅/❌ (订阅/API 模式)         → 有订阅就优先用它，不用额外花钱
+│ SearXNG 本地: ✅/❌ ← 零成本自建（可选）  → ✅=通用搜索零额度消耗；❌=正常走下面的渠道，想省额度可自建
 │ 智谱/Brave/Tavily: ✅/❌                 → 中文/英文普通网页搜索；缺失不阻塞 W3
 │ Museon:    ✅/❌  ← W3 发现必需          → ❌=搜不到小红书真实评论，我可以帮你自动安装
 │ Agent Reach: ✅/❌ ← W3 核验增强          → ❌=口碑只能看标题摘要，后续可增强
@@ -135,6 +140,15 @@ metadata:
 
 **用户拒绝安装时的执行规则**：可以继续用内置搜索、免费网页搜索或轻量浏览器 fallback，但必须在开头和结论中写明这是**低置信兜底**，不是完整 W3 口碑调研。
 
+### SearXNG 自建引导（v3.4，纯可选，不主动推销）
+
+`searxng-local` 是零成本自建渠道，适合**频繁搜索、反复撞免费额度上限**的用户。引导规则：
+
+- **不默认推荐**：新用户的最小成功路径仍是「Museon → 跑通 W3」；SearXNG 不进入首装引导，体检报告里只在用户额度紧张或表达「搜索太频繁、额度不够用」时才展开介绍。
+- **用户主动询问或同意后**：直接运行本 Skill 目录的 `bash install-searxng.sh`（Agent 代跑，全程无人值守；国内代理环境脚本会自动探测本机代理，探测不到时提示用户用 `--proxy` 重跑）。
+- **装完验证**：`searxng.sh --health` 输出 ✅ 即接入成功，无需改 channels.yaml（决策逻辑按探测结果走）。
+- **价值一句话**：一次部署后通用搜索零边际成本，Tavily/Firecrawl/Brave 退为兜底；但 W3 口碑和 W8 实操不受它影响，Museon/Agent Reach 该装的还是要装。
+
 <details>
 <summary>手动命令参考（默认不需要用户复制；仅在自动脚本不可用或调试时使用）</summary>
 
@@ -164,7 +178,7 @@ agent-reach doctor --json
 
 - **简单任务**（单事实/单语言/单维度主导）：直接用默认渠道搜一次，**不打分**。
   - 订阅模式：GPT/Claude 内置搜索一次。
-  - API 模式：Tier1 免费渠道（Tavily 英文/Brave 英文/智谱中文）一次。
+  - API 模式：searxng-local 可用则 `searxng.sh` 一次（零成本）；否则 Tier1 免费渠道（Tavily 英文/Brave 英文/智谱中文）一次。
   - **例外（v3.3）**：即使问题很短，只要它是「实操排障/怎么弄/为什么不行」类经验问题（见 W8 锚点），就不算简单事实任务——小红书等社交原生渠道对这类问题的实战解法命中率显著高于 SEO 网页搜索，必须走打分并让 Museon（小红书）首发，不要用内置搜索一次了事。
 - **复杂任务**（多对比/多视角/多语言/YMYL 敏感话题/含 W3 口碑/W8 实操经验）：走完整打分。
 
@@ -211,7 +225,7 @@ agent-reach doctor --json
 
 ## Step 3：成本自适应选渠道（读 channels.yaml）
 
-按「覆盖能力 + 成本最低」组合，但**渠道顺序不是固定按 tier 走**——v3.3 起，经验类问题（W3≥2 或 W8≥2）社交原生渠道首发：
+按「覆盖能力 + 成本最低」组合，但**渠道顺序不是固定按 tier 走**——v3.3 起，经验类问题（W3≥2 或 W8≥2）社交原生渠道首发；v3.4 起，Tier1 内部自建零成本渠道（searxng-local）优先于有额度上限的免费渠道（tier1_order：searxng-local → tavily → firecrawl → brave）。
 
 1. **经验/口碑类（W3≥2 或 W8≥2）**：**Museon（小红书等社交原生）首发**，再按成本补通用渠道。
    - 订阅模式：Museon 先发（社交原生内容内置搜索抓不到，先搜内置等于白搜）→ 需要官方规则/价格/条款确认时再用 Tier0 内置或浏览器查官方页。
@@ -219,10 +233,17 @@ agent-reach doctor --json
    - 原因：这类问题的高价值答案在「踩过坑的真人帖子」里，不在 SEO 网页里；通用搜索即使 0 成本，返回不可用结果也是浪费。
 2. **纯事实/时效/专业类（W3≤1 且 W8≤1）**：按成本档走。
    - 订阅模式：先 Tier0 内置（0 成本）→ 内置不足再看 Tier1。
-   - API 模式：从 Tier1 免费渠道选能覆盖高分维度的 → 不足再 Tier2 按量。
+   - API 模式：按 `tier1_order` 从免费渠道选能覆盖高分维度的 → 不足再 Tier2 按量。
+   - **searxng-local 可用时永远先试它**（零边际成本、无额度上限）；需要 LLM-ready 正文时用 `websearch-free.sh`（配本地 Jina Reader）或直接 WebFetch 打开 URL。
 3. **组合规则**：得分≥2 的维度映射到渠道 → 去重 → 最小必要集；**不默认全上**。但 W3/W8 高分时，Museon 不可省略、不可被通用搜索替代。
 
 ```text
+示例（v3.4 新增·零成本通用搜索，API 模式）：
+  「searxng 2026 最新版本号？」
+  W1=3 W2=2
+  → searxng.sh "searxng latest release"（0 成本）
+  → 需要正文细节时 websearch-free.sh -k 2 或 WebFetch 打开 URL
+  → SearXNG 不可用才走 Tavily/Firecrawl/Brave
 示例（v3.3 新增·实操排障，订阅模式）：
   「为什么收不到企业微信加我个人微信的好友请求？」
   W8=3 W5=3 W3=1
@@ -331,6 +352,7 @@ agent-reach doctor --json
 - **缺 Agent Reach**：口碑核验不充分 → 请求同意后自动安装基础版；系统/登录步骤才提示。
 - **Agent Reach 小红书登录态未激活**：无法读原帖/评论 → 引导激活 Chrome 登录态/OpenCLI。
 - **缺 Tier1 免费渠道**：中文/英文质量不足 → 建议配智谱/Brave/Tavily（可选）。
+- **频繁搜索额度紧张**（v3.4）：推荐自建 SearXNG 零成本渠道（`bash install-searxng.sh`，Agent 可代跑）；仅向表达额度焦虑/高频搜索的用户推荐，不向普通用户推销。
 - **订阅模式未用足**：提示 GPT/Claude 内置搜索是沉没成本，应优先使用。
 - **结果仍不满意**：建议切换更高质量渠道或使用浏览器精读。
 
@@ -346,6 +368,7 @@ agent-reach doctor --json
 
 | 渠道 | W1事实 | W2时效 | W3口碑 | W4深度 | W5中文 | W6英文 | W7权威 | W8实操 |
 |------|--------|--------|--------|--------|--------|--------|--------|--------|
+| SearXNG 本地自建 (tier1 首选) | 3 | 3 | 0 | 2 | 3 | 3 | 2 | 1 |
 | GPT/Claude 内置搜索 (Tier0) | 3 | 2 | 1 | 2 | 2 | 3 | 2 | 1 |
 | Proma WebSearch (Tavily) | 3 | 2 | 1 | 2 | 2 | 3 | 2 | 1 |
 | Brave Search | 3 | 2 | 1 | **3** | 1 | **3** | 2 | 1 |
@@ -357,6 +380,16 @@ agent-reach doctor --json
 > 通用网页搜索（内置/Tavily/Brave/智谱）对 W8 只有 1 分：SEO 内容对实操排障基本不可用，不能作为经验类问题首发。
 
 ## 附录 B：渠道调用速查（工具名 / 参数 / 实测坑）
+
+### SearXNG 本地自建（v3.4，零成本通用搜索首选）
+
+- 部署：`bash install-searxng.sh`（Agent 代跑；国内代理自动探测，探测不到用 `--proxy http://127.0.0.1:7890` 重跑；海外网络 `--no-proxy`）
+- CLI：`searxng.sh "查询词" -n 10`（精简 JSON，Agent 友好）/ `--md`（人读）/ `--raw` / `--health`
+- 垂直检索：Bang 语法 `!github` `!so`（StackOverflow）`!arxiv` `!wp`（Wikipedia）`!bd`（百度）——其他渠道做不到
+- 零成本全文链路：`websearch-free.sh "查询词" -k 3`（SearXNG 发现 + 本地 Jina Reader 提取 Markdown 正文；无 Jina Reader 时自动只返回概览）
+- 三个文档没写的坑（脚本已处理）：① 上游默认 `formats` 只有 html，必须加 `json`；② `limiter` 必须关，否则 API 被 403/429；③ SearXNG 内部用 httpx **不读 HTTP_PROXY 环境变量**，代理必须写进 `settings.yml` 的 `outgoing.proxies`
+- 服务管理：`launchctl kickstart -k gui/$(id -u)/com.searxng.local`；日志 `~/.local/state/searxng/searxng.error.log`；启动日志中 wikidata/ahmia/torch 报错是已禁用引擎的正常噪音，健康以 `searxng.sh --health` 为准
+- 边界：W3=0（无社交原生数据）、W8=1（不作为经验类首发）；需要正文时接 Jina Reader 或 WebFetch
 
 ### Proma WebSearch（Tavily 个人直连，英文事实首选）
 
@@ -404,18 +437,23 @@ museoncli research +social-media-search --platform xhs --intent keyword-search \
 
 ## 省成本原则
 
-1. 纯事实类（W3/W8≤1）：订阅模式 Tier0 内置优先（沉没成本）；API 模式 Tier1 免费优先（Tavily → Brave → 智谱），Tier2 按量兜底。
+1. 纯事实类（W3/W8≤1）：订阅模式 Tier0 内置优先（沉没成本）；API 模式 Tier1 免费优先，且 **searxng-local 可用时永远先试它**（零边际成本），额度渠道（Tavily → Firecrawl → Brave）退为兜底，Tier2 按量最后。
 2. 经验类（W3/W8≥2）：Museon（小红书）首发，内置/网页搜索只补官方信息——不可用的免费结果比按量付费更浪费。
 3. 组合克制：只调覆盖高分维度的渠道，不做“全上”；但 W3/W8 高分时 Museon 不可省略、不可被通用搜索替代。
 4. 控制结果量：`maxResults`/`count` 日常 3-5（深度调研才 8-10）；优先摘要接口，避免整页抓取。
 5. 子 Agent 搜索：复杂调研让子 Agent 消化，主 Agent 只收总结。
 6. 两阶段按需：W3=2/W8=2 不强制 Agent Reach（省时）；W3=3/W8=3 才完整三阶段。
+7. 零成本全文链路（v3.4）：SearXNG 可用且需要正文时，优先 `websearch-free.sh`（配本地 Jina Reader）或直接 WebFetch 重点 URL，把 Tavily/Firecrawl 额度留给不可替代场景。
 
 ## 故障排查速查
 
 | 症状 | 原因 | 处理 |
 |------|------|------|
-| 402 Insufficient quota | WebSearch 走了云端共享池 | useCloud:false + Tavily key |
+| SearXNG 所有引擎超时 | 未配代理或代理未写入 settings.yml（httpx 不读环境变量） | `bash install-searxng.sh --proxy http://127.0.0.1:7890` 重跑；确认代理已启动 |
+| SearXNG API 403/429 | limiter 未关 | settings.yml 里 `server.limiter: false` 后重启服务 |
+| SearXNG format=json 403 | formats 未开 json | settings.yml 里 `search.formats` 加 `json` 后重启 |
+| SearXNG 服务挂了 | 进程崩溃 | `launchctl kickstart -k gui/$(id -u)/com.searxng.local`；看 `~/.local/state/searxng/searxng.error.log` |
+| 402 Insufficient quota | WebSearch 走了云端共享池 | useCloud:false + Tavily key；或改用 searxng-local |
 | 智谱 MCP 无工具 | 未重启 / type 配错 | 重启；MCP type 必须是 http（不是 sse） |
 | 智谱中文结果相关性差 | 用了 Std 引擎 | 深度场景改用 Pro/Quark，或加 `search_domain_filter` |
 | Brave fetch failed | Node 不走代理或仅有 npx 但未配置 key/MCP | 配置 BRAVE_API_KEY + `NODE_USE_ENV_PROXY=1` + 代理 env；确认本地代理已启动 |

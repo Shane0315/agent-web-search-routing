@@ -28,6 +28,7 @@ bash doctor.sh
 | `museon` | object | Museon CLI 安装、授权和版本状态。 |
 | `agent_reach` | object | Agent Reach 安装、doctor 和小红书 backend 状态。 |
 | `config_clues` | object | Tavily / Brave / 智谱配置线索，只返回 boolean，不返回密钥值。 |
+| `searxng` | object | （v3.4）SearXNG 本地自建渠道健康状态：`healthy`（JSON API 可达）与 `endpoint`。 |
 | `required_missing` | string[] | 影响核心 W3 能力的缺失项；当前最关键的是 `museoncli`。 |
 | `optional_missing` | string[] | 可选增强渠道或普通 API 搜索配置缺失。 |
 | `missing` | string[] | `required_missing + optional_missing` 的并集，便于调用方快速判断。 |
@@ -112,7 +113,20 @@ Agent 不应编造平台命令；下一步必须以 `agent-reach doctor --json` 
 
 - 不读取或输出密钥值；
 - 普通 API 渠道缺失不会导致 `ok=false`；
-- 是否使用这些渠道由 `SKILL.md` 的 W1-W7 打分和成本路由决定。
+- 是否使用这些渠道由 `SKILL.md` 的 W1-W8 打分和成本路由决定。
+
+## searxng 对象（v3.4 新增）
+
+```json
+{
+  "healthy": true,
+  "endpoint": "http://127.0.0.1:8888"
+}
+```
+
+- `healthy=true`：本地 SearXNG JSON API 可达（`~/.local/bin/searxng.sh --health` 或直接探测 127.0.0.1:8888）。此时 Tier1 通用搜索应优先走它（零边际成本）。
+- `healthy=false`：未部署。记入 `optional_missing`（`searxng_local`），**不影响 `ok`**，也不要主动向用户推销安装；仅当用户表达频繁搜索/额度焦虑时才推荐 `bash install-searxng.sh`。
+- SearXNG 不覆盖 W3/W8：社交口碑与实操排障仍由 Museon / Agent Reach 负责。
 
 ## 最小调用示例
 

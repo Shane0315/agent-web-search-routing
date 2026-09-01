@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Harness](https://img.shields.io/badge/harness-Codex%20%7C%20Claude%20%7C%20Proma%20%7C%20any-blue)](#)
-[![Skill Version](https://img.shields.io/badge/version-3.3.0-green)](#)
+[![Skill Version](https://img.shields.io/badge/version-3.4.0-green)](#)
 
 ## 为什么需要它？
 
@@ -21,6 +21,7 @@
 
 - 🧠 **7 维信息需求打分**：事实/时效/真实口碑/深度/中文/英文/权威（0-3 分 + 语义锚点）
 - 💰 **成本自适应路由**：订阅内置（Tier 0）→ 免费额度（Tier 1）→ 按量付费（Tier 2），沉没成本优先
+- 🆓 **零成本自建渠道（v3.4 可选）**：一键脚本部署本地 SearXNG，无额度上限无 API Key，频繁搜索用户的额度焦虑解药
 - 🔍 **社交口碑两阶段管线**：Museon 高召回发现 → Agent Reach 原帖/评论核验 → 官方文档确认
 - 🆕 **新用户自动引导**：首次触发输出「渠道体检报告」，缺什么引导装什么（Museon 必装 + Agent Reach 推荐）
 - 🧩 **子 Agent 搜索**：复杂调研委派子 Agent 完成，主 Agent 只收几百字总结，上下文干净
@@ -88,6 +89,7 @@ cp -R agent-web-search-routing ~/.proma-community/default-skills/
 ```
 ┌ 渠道体检报告 ┐
 │ 内置搜索:  ✅ (订阅模式)
+│ SearXNG 本地: ❌ (可选零成本自建)
 │ 智谱/Brave/Tavily: ❌
 │ Museon:    ❌  ← W3 发现必需
 │ Agent Reach: ❌ ← W3 核验增强
@@ -125,7 +127,8 @@ cp -R agent-web-search-routing ~/.proma-community/default-skills/
 
 ```
 Tier 0  订阅内置搜索（GPT/Claude）  ← 沉没成本，边际≈0，优先用
-Tier 1  免费额度（Tavily/Brave/Museon/Agent Reach）
+Tier 1  零成本自建（SearXNG，可选） ← v3.4：可用时额度渠道之前先试它
+        免费额度（Tavily/Brave/Museon/Agent Reach）
 Tier 2  按量付费（智谱等）          ← 克制使用
 ```
 
@@ -164,6 +167,7 @@ agent-web-search-routing/
 ├── install.sh       # 一键安装脚本（自动探测 harness）
 ├── install-museon.sh       # Museon 自动安装/授权辅助脚本
 ├── install-agent-reach.sh  # Agent Reach 自动安装/doctor 检查脚本
+├── install-searxng.sh      # SearXNG 本地零成本渠道一键部署（v3.4 可选）
 ├── doctor.sh        # 渠道体检脚本（文本/JSON）
 ├── scripts/test.sh  # 最小回归测试
 ├── docs/new-user-dogfooding.md # 纯新用户体验回归 SOP
@@ -179,7 +183,9 @@ agent-web-search-routing/
 | GPT/Claude 内置搜索 | Tier 0 通用 | 订阅内 | 订阅用户自动 |
 | [Museon](https://github.com/Museon-AI/museon-cli) | W3 发现（小红书/X/Reddit 原生） | $0 免费档 | ⭐ 必装 |
 | [Agent Reach](https://github.com/Panniantong/agent-reach) | W3 核验（15 平台路由器） | 开源免费 | 推荐 |
+| [SearXNG 本地自建](https://github.com/searxng/searxng) | Tier 1 通用（零成本） | $0 无上限 | 可选（v3.4，频繁搜索推荐） |
 | Tavily | 英文通用 | 1000 credits/月 | 可选 |
+| Firecrawl | 英文通用/抓取 | 500 credits/月 | 可选 |
 | Brave Search | 英文/深度 | $5/月 | 可选 |
 | 智谱 Web Search | 中文/深度 | 按量 | 可选 |
 

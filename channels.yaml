@@ -8,12 +8,14 @@
 #   tier1 = 免费额度渠道（注册即有免费额度）
 #   tier2 = 按量付费渠道（按次/按 token 计费）
 #
+#   tier1_order = Tier1 内部优先级（v3.4：零成本自建渠道最优先）
+#
 # capability: 该渠道能覆盖的能力维度（W1-W8，见 SKILL.md）
 # required:   是否必选渠道（缺失时 Skill 会引导用户安装，而不是静默降级）
 # w3_role:    W3 两阶段管线中的角色（discover=发现 / verify=核验 / confirm=确认）
 # =====================================================
 
-version: "3.3.0"
+version: "3.4.0"
 
 channels:
   # ───────────── Tier 0：订阅内置搜索（沉没成本）─────────────
@@ -37,7 +39,54 @@ channels:
     detect: "环境工具列表含 WebSearch"
     note: "同样抓不到社交平台原生内容（W3 弱）；W8 实操排障类问题不应作为首发渠道"
 
-  # ───────────── Tier 1：免费额度渠道 ─────────────
+  # ───────────── Tier 1：免费渠道 ─────────────
+  # v3.4：Tier1 内部分两类——「零成本自建」（无额度上限）和「注册免费额度」（有月度上限）。
+  # 排序见文末 tier1_order：自建渠道可用时永远先试，注册额度渠道退为兜底。
+
+  searxng-local:
+    name: "SearXNG 本地自建（元搜索聚合）"
+    tier: 1
+    harness: ["proma", "claude-code", "codex", "generic-cli"]
+    capability: [W1, W2, W4, W5, W6, W7]
+    cost: "$0 完全免费·无额度上限·无 API Key"
+    required: false   # ← 可选增强：不装不影响 Skill 任何现有路径，只是多用点额度
+    priority_hint: "tier1 内最优先——零边际成本，可用时应在 Tavily/Firecrawl/Brave 之前尝试"
+    detect: "curl -m 5 --noproxy '*' 'http://127.0.0.1:8888/search?q=ping&format=json' 返回 200；或 ~/.local/bin/searxng.sh --health 输出 ✅"
+    endpoint: "http://127.0.0.1:8888/search?q=<query>&format=json"
+    tool_ref: |
+      封装脚本 ~/.local/bin/searxng.sh（装后自动生成）：
+        searxng.sh "查询词" -n 10     # 精简 JSON（默认，省上下文）
+        searxng.sh "查询词" --md      # Markdown 列表（人读友好）
+        searxng.sh "查询词" --raw     # 原始完整 JSON
+        searxng.sh --health           # 健康检查
+      Bang 语法做垂直检索（其他渠道做不到）：!github / !so / !arxiv / !wp / !bd
+    install: |
+      # 一键安装（推荐让 Agent 代跑，只有代理需要确认）：
+      #   bash install-searxng.sh
+      # 脚本会完成：clone 源码 → uv venv(Python 3.12) → 写 settings.yml
+      # （开 JSON API + 关 limiter + 随机 secret key + 可选代理）→ launchd 自启
+      # → 安装 searxng.sh / websearch-free.sh 封装 → 健康验证。
+      # 可重复运行（幂等），升级用 git pull 后重启。
+      #
+      # 源码：~/searxng-src；配置：~/.config/searxng/settings.yml；
+      # 自启：launchd com.searxng.local（macOS；Linux 见脚本尾部手动指引）。
+      #
+      # 零成本全文链路（可选，需要本地 Jina Reader）：
+      #   websearch-free.sh "查询词" -k 3    # SearXNG 发现 + Jina Reader 提取全文
+      #
+      # 故障恢复：launchctl kickstart -k gui/$(id -u)/com.searxng.local
+      # 日志：~/.local/state/searxng/searxng.error.log
+    note: |
+      聚合 Google/Bing/Wikipedia/百度/360 + GitHub/StackOverflow/arXiv 垂直引擎。
+      适合频繁搜索的用户：一次部署后通用搜索零边际成本，Tavily/Firecrawl/Brave
+      的月度额度焦虑基本消除。
+      短板：① 返回标题+URL+短摘要，不是 LLM-ready 清洗正文 → 需要正文时接
+      Jina Reader（websearch-free.sh 已封装）或浏览器；② 中文深度仍弱于智谱 Pro；
+      ③ W3 社交口碑无能力，仍需 Museon + Agent Reach；④ W8 实操排障仍应社交首发。
+      经共享代理出口 IP 使用时部分引擎（DDG/Brave/Startpage/qwant/sogou）会触发
+      验证码，install-searxng.sh 已默认禁用它们保响应速度，主力为
+      Google/Bing/百度/360/Wikipedia/mojeek。
+
   tavily:
     name: "Tavily (Proma WebSearch 直连)"
     tier: 1
@@ -53,6 +102,25 @@ channels:
       #    { "toolCredentials": { "web-search": { "useCloud": "false", "apiKey": "tvly-xxx" } } }
       #    useCloud 必须 false：true 走云端共享池会报 402
     note: "英文事实/通用搜索首选，免费额度充足；W8 实操排障弱（1 分），不首发"
+
+  firecrawl:
+    name: "Firecrawl (API)"
+    tier: 1
+    harness: ["proma", "claude-code", "codex", "generic-cli"]
+    capability: [W1, W2, W4, W6, W7]
+    cost: "500 credits/月（免费，月度重置）"
+    required: false
+    tool_ref: "REST API：POST /v1/search（搜索）、POST /v1/scrape（抓取）；无公开余额端点，额度去 https://firecrawl.dev/dashboard 查看"
+    install: |
+      # 1. 注册 https://firecrawl.dev，创建 API Key（fc-xxx）
+      # 2. 写入环境变量（~/.zshrc 或 ~/.bashrc）：
+      #    export FIRECRAWL_API_KEY="fc-xxx"
+      # 3. curl 示例：
+      #    curl -X POST https://api.firecrawl.dev/v1/search \
+      #      -H "Authorization: Bearer $FIRECRAWL_API_KEY" \
+      #      -H "Content-Type: application/json" \
+      #      -d '{"query":"<关键词>","limit":5}'
+    note: "Tavily 额度超限/不可用时的替代搜索渠道；scrape 按量消耗 credits，能用免费链路时优先 SearXNG"
 
   brave:
     name: "Brave Search (MCP)"
@@ -167,6 +235,26 @@ priority_default:
 experiential_platforms:
   zh: ["xhs", "bilibili", "zhihu"]   # 国产 App/生活服务/职场场景：小红书 > B站 > 知乎
   en: ["reddit", "x", "youtube"]    # 英文场景：Reddit > X > YouTube
+
+# Tier1 内部优先级（v3.4：自建零成本渠道优先于有额度上限的免费渠道）
+# 仅适用于纯事实/时效/专业类通用搜索（W3≤1 且 W8≤1）；口碑/实操类仍社交首发，不在此序列。
+tier1_order:
+  - searxng-local   # $0 无上限（若已部署）→ 频繁搜索场景的主力，永远先试它
+  - tavily          # 1000 credits/月
+  - firecrawl       # 500 credits/月
+  - brave           # $5/月
+  - zhipu           # 按量付费，中文深度必要时才用（属于 tier2，此处仅示意额序）
+  # museon / agent-reach 为 W3/W8 专用，不参与通用搜索排序
+
+# 零成本组合链路（可选自建，不消耗任何额度）
+# 适用 W1/W2/W4/W5/W6/W7；不适用 W3（社交口碑）——那仍需 Museon 发现 + Agent Reach 核验。
+free_pipeline:
+  discover: "searxng-local"              # 聚合搜索发现 URL
+  extract: "jina-reader-local"           # 可选：http://127.0.0.1:8082/<url> 提取 Markdown 正文
+  wrapper: "websearch-free.sh"           # 封装二者：~/.local/bin/websearch-free.sh（install-searxng.sh 附带）
+  degrade_notes: |
+    jina_reader_missing: websearch-free.sh 仍可用，但只返回搜索结果概览（标题+URL+摘要），
+      需要正文时用浏览器/WebFetch 打开重点 URL；或退回 Tavily/Firecrawl 有额度渠道。
 
 # W3 两阶段管线组合（v3.2 核心：发现 + 核验 互补，不替代）
 w3_pipeline:

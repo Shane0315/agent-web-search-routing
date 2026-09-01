@@ -212,6 +212,7 @@ bash install-agent-reach.sh
 | Agent Reach ✅ | 可以打开重点原帖、读取正文和评论 | 能区分个案、误解、已修复问题和高频共识 |
 | Agent Reach ❌ | 只能依赖 Museon 摘要或手动打开少量页面 | 发现能力还在，但核验深度不足 |
 | 智谱/Brave/Tavily ❌ | 普通 API 搜索渠道未配置 | 可选；不影响 Museon W3 发现 |
+| SearXNG 本地 ❌ | 零成本自建通用搜索渠道未部署 | 纯可选（v3.4）；频繁搜索/额度紧张时再装（`bash install-searxng.sh`），不影响 W3 主线 |
 
 `bash doctor.sh --json` 的 `ok` 只在必需项缺失时为 false；可选 API 渠道和 Agent Reach 缺失会进入 `optional_missing`，不会伪装成致命错误。注意：有 warning（例如 Agent Reach 已装但小红书登录态未激活、仅检测到 npx 但 Brave key 未配置）时，`status` 可能是 `warnings` 或 `w3_ready`，但 `ok` 仍可能为 true；是否影响当前任务要看 `warnings` 和目标通道状态。
 
@@ -266,3 +267,4 @@ agent-reach doctor --json
 - 想调整渠道：编辑 [`channels.yaml`](channels.yaml)
 - 想解析 doctor JSON：看 [`docs/doctor-json.md`](docs/doctor-json.md)
 - 想回归新用户体验：看 [`docs/new-user-dogfooding.md`](docs/new-user-dogfooding.md)
+- 搜索太频繁、免费额度不够用：一键自建零成本 SearXNG 渠道（`bash install-searxng.sh`，详见 [`INSTALL.md`](INSTALL.md) 二.7）——纯可选，不影响本指南的任何路径
