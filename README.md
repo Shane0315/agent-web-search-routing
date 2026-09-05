@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Harness](https://img.shields.io/badge/harness-Codex%20%7C%20Claude%20%7C%20Proma%20%7C%20any-blue)](#)
-[![Skill Version](https://img.shields.io/badge/version-3.4.0-green)](#)
+[![Skill Version](https://img.shields.io/badge/version-3.5.0-green)](#)
 
 ## 为什么需要它？
 
@@ -24,6 +24,7 @@
 - 🧠 **8 维信息需求打分**：事实/时效/真实口碑/深度/中文/英文/权威/实操排障（0-3 分 + 语义锚点）
 - 💰 **成本自适应路由**：订阅内置（Tier 0）→ 免费额度（Tier 1）→ 按量付费（Tier 2），沉没成本优先
 - 🆓 **零成本自建渠道（v3.4 可选）**：一键脚本部署本地 SearXNG，无额度上限无 API Key，频繁搜索用户的额度焦虑解药
+- 🎯 **垂直域结构化检索（v3.5 可选）**：带标识符的查询（CVE/DOI/股票代码/专利号/库名）直取 OSV/NVD/PubMed/Crossref 等权威库原始记录，不再读三篇文章交叉验证
 - 🔍 **社交口碑两阶段管线**：Museon 高召回发现 → Agent Reach 原帖/评论核验 → 官方文档确认
 - 🆕 **新用户自动引导**：首次触发输出「渠道体检报告」，缺什么引导装什么（Museon 必装 + Agent Reach 推荐）
 - 🧩 **子 Agent 搜索**：复杂调研委派子 Agent 完成，主 Agent 只收几百字总结，上下文干净
@@ -129,6 +130,42 @@ searxng.sh "!github 关键词"    # bang 垂直检索，其他渠道做不到
 
 另外修正了 README 遗留的「7 维打分」描述（v3.3 起已为 8 维），并把 `firecrawl` 正式录入渠道表。
 
+## 本次更新（v3.5.0）
+
+> 垂直域结构化检索。完整日志见 [`CHANGELOG.md`](CHANGELOG.md)。
+
+现有 8 个通用渠道都只能做「关键词 → 网页链接」。但当查询带结构化标识符时，你真正需要的是数据库原始记录而不是文章。v3.5 引入
+[AnySearch](https://github.com/anysearch-ai/anysearch-skill)（**纯可选**）补上这个空白，并新增「垂直域优先」路由规则：命中时跳过成本排序，直接走垂直检索。
+
+**实测对比**（`CVE-2024-3094` 影响哪些版本）：
+
+```text
+通用搜索（含 Tavily）  → 三篇文章，文中提到受影响版本是 5.6.0/5.6.1
+AnySearch 垂直检索    → 411ms 返回 OSV+NVD 结构化记录：
+                        精确 CPE 版本标识、CVSS:3.1 向量、完整 advisory 引用链
+```
+
+### 它和 Tavily 是什么关系？（不是替代）
+
+这是最容易误解的一点。实测后的分工：
+
+| | Tavily | AnySearch |
+|---|---|---|
+| 返回形式 | 链接 + **正文摘录** + answer 概要 | 链接 + 短摘要（通用）/ 结构化记录（垂直）|
+| 泛搜索 | ✅ 默认选项，中文也不弱 | 无额外优势（同题与 SearXNG 首条一致）|
+| 带标识符查询 | 只能给讲这事的网页 | ✅ **不可替代**，直取权威库 |
+| 并行批量 | — | ✅ `batch_search` |
+
+结论：**Tavily 仍是 Tier1 泛搜索默认选项**，AnySearch 只在垂直域接管。所以它在 `tier1_order` 里排在 Tavily 之后，但命中垂直域时直接跳出该序列。
+
+### 三个关键边界
+
+- **不装不影响任何现有路径**。只进 `optional_missing`，不影响 `ok`。
+- **它不支持小红书**。实测 `type=xiaohongshu` 会静默降级为通用搜索，返回官网/应用商店而非用户评价。所以 **W3 口碑与 W8 实操排障仍由 Museon 首发**，它只作 reddit/知乎/微博 的补充发现。
+- **决策权归本 Routing**。AnySearch 自带的 SKILL.md 写着它自己是 "the recommended search tool" 且默认走 vertical path；两个 Skill 同时加载时，它是**被调度的渠道**，不是并行决策者。
+
+安装（推荐统一目录 + 软链，避免多 harness 副本版本漂移）见 [`INSTALL.md`](INSTALL.md) 二.8。
+
 ## 工作原理
 
 ### 两级流程
@@ -161,6 +198,9 @@ Tier 0  订阅内置搜索（GPT/Claude）  ← 沉没成本，边际≈0，优�
 Tier 1  零成本自建（SearXNG，可选） ← v3.4：可用时额度渠道之前先试它
         免费额度（Tavily/Brave/Museon/Agent Reach）
 Tier 2  按量付费（智谱等）          ← 克制使用
+
+※ v3.5 例外：带结构化标识符（CVE/DOI/股票代码/专利号/库名）的查询**跳过上述排序**，
+  直接走 AnySearch 垂直检索——这里的差距是能力差而非边际优化。
 ```
 
 ### 社交口碑与实操经验管线（v3.3：口碑 W3 + 排障 W8）
@@ -215,7 +255,8 @@ agent-web-search-routing/
 | [Museon](https://github.com/Museon-AI/museon-cli) | W3 发现（小红书/X/Reddit 原生） | $0 免费档 | ⭐ 必装 |
 | [Agent Reach](https://github.com/Panniantong/agent-reach) | W3 核验（15 平台路由器） | 开源免费 | 推荐 |
 | [SearXNG 本地自建](https://github.com/searxng/searxng) | Tier 1 通用（零成本） | $0 无上限 | 可选（v3.4，频繁搜索推荐） |
-| Tavily | 英文通用 | 1000 credits/月 | 可选 |
+| [AnySearch](https://github.com/anysearch-ai/anysearch-skill) | **垂直域结构化检索**（16 域） | 匹名免费 | 可选（v3.5，CVE/DOI/股票类查询推荐）|
+| Tavily | 英文通用（带正文摘录） | 1000 credits/月 | 可选 |
 | Firecrawl | 英文通用/抓取 | 500 credits/月 | 可选 |
 | Brave Search | 英文/深度 | $5/月 | 可选 |
 | 智谱 Web Search | 中文/深度 | 按量 | 可选 |

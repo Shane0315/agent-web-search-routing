@@ -7,7 +7,7 @@ description: |
   新用户自动引导安装缺失渠道 → 复杂调研用子 Agent 搜索提升质量。
   触发词：搜索/查资料/联网/口碑/评测/最新/对比/调研/web search/research。
 metadata:
-  version: "3.4.0"
+  version: "3.5.0"
 ---
 
 # Web Search Routing
@@ -50,19 +50,25 @@ metadata:
 4. **零成本自建渠道检测**（v3.4，可选增强，不阻塞任何路径）：
    - `~/.local/bin/searxng.sh --health` 输出 ✅，或 `curl -m 5 --noproxy '*' 'http://127.0.0.1:8888/search?q=ping&format=json'` 返回 200？→ SearXNG 本地实例可用，进入 Tier1 首选。
    - 不可用 → 记为 `optional_missing`，正常走 Tavily/Firecrawl/Brave/智谱；**不要静默降级，也不要向用户施压安装**——这是可选功能，仅在用户表达「搜索额度焦虑/频繁搜索想省钱」时才推荐（见 Step 0.5）。
-5. **运行 `bash doctor.sh` 或 `bash doctor.sh --json`**（如果本 Skill 目录中存在）。JSON 状态语义：
+5. **垂直域渠道检测**（v3.5，可选增强，不阻塞任何路径）：
+   - `ls ~/.agents/skills/anysearch/scripts/anysearch_cli.js`（或各 harness 软链路径）存在？→ AnySearch 可用，开启「垂直域优先」规则（见 Step 3）。
+   - 读 `<skill_dir>/runtime.conf` 取 `Command`（安装时已探测好的 Runtime），不要重新探测。
+   - 不可用 → 记为 `optional_missing`；带标识符的查询回退通用搜索，但**必须告知用户拿不到结构化原始记录**。
+6. **运行 `bash doctor.sh` 或 `bash doctor.sh --json`**（如果本 Skill 目录中存在）。JSON 状态语义：
    - `required_missing`：缺 W3 必需 Museon；需要用户同意后自动安装。
-   - `optional_missing`：缺 Tavily/Brave/智谱/Agent Reach/SearXNG 等增强渠道；不是 `ok=false` 的原因。
+   - `optional_missing`：缺 Tavily/Brave/智谱/Agent Reach/SearXNG/AnySearch 等增强渠道；不是 `ok=false` 的原因。
    - `warnings`：已装但授权/登录态/版本可能有问题。
    - `w3_ready`：Museon 已可用，可执行 W3 发现。
    - `searxng.healthy: true`：本地 SearXNG 零成本渠道可用。
+   - `anysearch.installed: true`：垂直域结构化检索可用。
    - `ok`：基础能力齐全且无警告。
-6. **输出「渠道体检报告」**（简短表格，告知用户当前能力与缺口；**每个 ❌ 后跟一行白话解读**）。
+7. **输出「渠道体检报告」**（简短表格，告知用户当前能力与缺口；**每个 ❌ 后跟一行白话解读**）。
 
 ```text
 ┌ 渠道体检报告 ┐
 │ 内置搜索:  ✅/❌ (订阅/API 模式)         → 有订阅就优先用它，不用额外花钱
 │ SearXNG 本地: ✅/❌ ← 零成本自建（可选）  → ✅=通用搜索零额度消耗；❌=正常走下面的渠道，想省额度可自建
+│ AnySearch: ✅/❌ ← 垂直域检索（可选）   → ✅=CVE/DOI/股票/专利类查询能直取权威数据库；❌=只能拿到讲这事的网页
 │ 智谱/Brave/Tavily: ✅/❌                 → 中文/英文普通网页搜索；缺失不阻塞 W3
 │ Museon:    ✅/❌  ← W3 发现必需          → ❌=搜不到小红书真实评论，我可以帮你自动安装
 │ Agent Reach: ✅/❌ ← W3 核验增强          → ❌=口碑只能看标题摘要，后续可增强
@@ -139,6 +145,36 @@ metadata:
 ```
 
 **用户拒绝安装时的执行规则**：可以继续用内置搜索、免费网页搜索或轻量浏览器 fallback，但必须在开头和结论中写明这是**低置信兜底**，不是完整 W3 口碑调研。
+
+### AnySearch 垂直域调用（v3.5，可选）
+
+先读 `<skill_dir>/runtime.conf` 拿 `Command`（安装时已探测，不要重探）。统一目录约定为 `~/.agents/skills/anysearch`，各 harness 用软链指向。
+
+```bash
+CLI="node ~/.agents/skills/anysearch/scripts/anysearch_cli.js"   # 以 runtime.conf 为准
+
+# 1) 垂直搜索必须先取子域与必填参数（不能猜）
+$CLI get_sub_domains --domain security
+$CLI get_sub_domains --domains academic,finance   # 最多 5 个
+
+# 2) 垂直检索
+$CLI search "CVE-2024-3094" --tag security.vuln --params 'type=cve,value=CVE-2024-3094'
+$CLI search "AAPL" --tag finance.quote --params 'type=stock,symbol=AAPL,cn_code='
+
+# 3) 并行批量（其他渠道无此能力）
+$CLI batch_search --query "q1" --query "q2" --max_results 3
+
+# 4) 正文提取（返回 Markdown，无 --format 参数）
+$CLI extract "https://example.com/page"
+```
+
+**实测坑**：
+
+- `--params` 值含空格必须整体加引号，否则被当成未知 flag 直接报错（`Unknown flag: AI`）。
+- `(required)` 参数**即使不适用也必须传空值**（如 `cn_code=`），缺一个就后端校验失败。
+- `get_sub_domains` 不传 `--domain/--domains` 会直接报错，不会列出全部域。
+- 垂直/社交模式返回很重（social_media 带评论 3 条约 3165 token，结构化 CVE 单条上千），批量查询请走子 Agent。
+- 它自带 SKILL.md 自称 "the recommended search tool"；**本 Routing 保留路由决策权**，不要因此跳过打分与成本路由。
 
 ### SearXNG 自建引导（v3.4，纯可选，不主动推销）
 
@@ -225,26 +261,43 @@ agent-reach doctor --json
 
 ## Step 3：成本自适应选渠道（读 channels.yaml）
 
-按「覆盖能力 + 成本最低」组合，但**渠道顺序不是固定按 tier 走**——v3.3 起，经验类问题（W3≥2 或 W8≥2）社交原生渠道首发；v3.4 起，Tier1 内部自建零成本渠道（searxng-local）优先于有额度上限的免费渠道（tier1_order：searxng-local → tavily → firecrawl → brave）。
+按「覆盖能力 + 成本最低」组合，但**渠道顺序不是固定按 tier 走**——v3.3 起，经验类问题（W3≥2 或 W8≥2）社交原生渠道首发；v3.4 起，Tier1 内部自建零成本渠道（searxng-local）优先于有额度上限的免费渠道；**v3.5 起，带结构化标识符的查询跳过成本排序，直接走垂直域检索**。
 
+0. **垂直域优先（v3.5，先于下面所有规则判断）**：查询含结构化标识符或属于 16 个垂直域时，**AnySearch 垂直检索优先于所有通用渠道**（包括零成本的 searxng-local）。
+   - 触发标识符：CVE 编号 / DOI / PMID / 股票代码 / 专利号 / 库名+用法 / IATA 航班号。
+   - 流程：`get_sub_domains --domain <domain>` 拿 sub_domain 与必填参数（**不能猜参数**）→ `search --tag <sub_domain> --params '<k=v,...>'`。
+   - 不确定是通用还是垂直？用 `batch_search` 提 1 通用 + N 垂直并行，覆盖优于猜。
+   - **为何优先于零成本渠道**：这里的差距不是边际优化而是能力差。实测 `CVE-2024-3094`：AnySearch 411ms 返回 OSV+NVD 结构化记录（精确 CPE 版本、CVSS 向量、完整 advisory 引用）；通用搜索（含 Tavily）只能给「文章里写着受影响版本是 5.6.0/5.6.1」。
+   - AnySearch 不可用 → 回退通用渠道，但告知用户拿不到原始记录。
 1. **经验/口碑类（W3≥2 或 W8≥2）**：**Museon（小红书等社交原生）首发**，再按成本补通用渠道。
    - 订阅模式：Museon 先发（社交原生内容内置搜索抓不到，先搜内置等于白搜）→ 需要官方规则/价格/条款确认时再用 Tier0 内置或浏览器查官方页。
    - API 模式：Museon 首发 → 需要事实/官方补充时接智谱（中文）或 Tavily/Brave（英文）。
    - 原因：这类问题的高价值答案在「踩过坑的真人帖子」里，不在 SEO 网页里；通用搜索即使 0 成本，返回不可用结果也是浪费。
+   - **AnySearch 不能接管这一档**：它的 social_media 覆盖 weibo/zhihu/X/reddit/linkedin/wechatmp，但**不支持小红书**（实测 `type=xiaohongshu` 静默降级为通用搜索，返回官网/应用商店）。只当目标平台是 reddit/知乎/微博 时，才可用它做补充发现（优势：reddit 结果直接内联评论区，一步完成发现+核验）。
 2. **纯事实/时效/专业类（W3≤1 且 W8≤1）**：按成本档走。
    - 订阅模式：先 Tier0 内置（0 成本）→ 内置不足再看 Tier1。
    - API 模式：按 `tier1_order` 从免费渠道选能覆盖高分维度的 → 不足再 Tier2 按量。
    - **searxng-local 可用时永远先试它**（零边际成本、无额度上限）；需要 LLM-ready 正文时用 `websearch-free.sh`（配本地 Jina Reader）或直接 WebFetch 打开 URL。
+   - **需要「链接+正文摘录+概要」一步到位时用 Tavily**（实测它返回抽好的正文段落与 answer 概要，中文也不弱）；AnySearch 通用搜索只给短摘要，泛搜索不具优势。
 3. **组合规则**：得分≥2 的维度映射到渠道 → 去重 → 最小必要集；**不默认全上**。但 W3/W8 高分时，Museon 不可省略、不可被通用搜索替代。
 
+> **决策权归属（v3.5 重要）**：AnySearch 自带的 SKILL.md 写着它自己是 "the **recommended** search tool"，且规定「默认走 vertical path」。两个 Skill 同时加载时，**本 Routing 是调度方**：AnySearch 是被调度的渠道之一，不是并行的决策者。不要因为它自称 recommended 就跳过本 Skill 的打分与成本路由；尤其不要在 W3/W8 经验类问题上用它取代 Museon。
+
 ```text
-示例（v3.4 新增·零成本通用搜索，API 模式）：
+示例（v3.5 新增·垂直域优先，任意模式）：
+  「CVE-2024-3094 影响哪些版本？」
+  W1=3 W7=3，含 CVE 标识符 → 触发垂直域优先
+  → get_sub_domains --domain security（拿到 security.vuln 及必填参数）
+  → search --tag security.vuln --params 'type=cve,value=CVE-2024-3094'
+  → 直接得到 OSV+NVD 原始记录，不需要再读三篇文章交叉验证
+  ※ 垂直模式单条可能上千 token，多个标识符批量查询时走子 Agent
+示例（v3.4·零成本通用搜索，API 模式）：
   「searxng 2026 最新版本号？」
-  W1=3 W2=2
+  W1=3 W2=2，无标识符、非垂直域
   → searxng.sh "searxng latest release"（0 成本）
   → 需要正文细节时 websearch-free.sh -k 2 或 WebFetch 打开 URL
   → SearXNG 不可用才走 Tavily/Firecrawl/Brave
-示例（v3.3 新增·实操排障，订阅模式）：
+示例（v3.3·实操排障，订阅模式）：
   「为什么收不到企业微信加我个人微信的好友请求？」
   W8=3 W5=3 W3=1
   → Museon 小红书首发（搜“企业微信 好友请求 收不到”等）
@@ -371,6 +424,8 @@ agent-reach doctor --json
 | SearXNG 本地自建 (tier1 首选) | 3 | 3 | 0 | 2 | 3 | 3 | 2 | 1 |
 | GPT/Claude 内置搜索 (Tier0) | 3 | 2 | 1 | 2 | 2 | 3 | 2 | 1 |
 | Proma WebSearch (Tavily) | 3 | 2 | 1 | 2 | 2 | 3 | 2 | 1 |
+| **AnySearch 垂直域** (带标识符时) | **3** | 2 | 1 | **3** | 2 | **3** | **3** | 1 |
+| AnySearch 通用搜索 | 3 | 2 | 1 | 2 | 2 | 3 | 2 | 1 |
 | Brave Search | 3 | 2 | 1 | **3** | 1 | **3** | 2 | 1 |
 | 智谱 Web Search | 3 | 2 | 1 | **3** | **3** | 2 | 2 | 1 |
 | 小红书 (Museon, `--platform xhs`) | 1 | **3** | **3** | 1 | **3** | 1 | 1 | **3** |
@@ -378,6 +433,8 @@ agent-reach doctor --json
 | 浏览器 (chrome-devtools/内置) | 3 | 3 | 2 | 3 | 3 | 3 | 2 | 2 |
 
 > 通用网页搜索（内置/Tavily/Brave/智谱）对 W8 只有 1 分：SEO 内容对实操排障基本不可用，不能作为经验类问题首发。
+>
+> **AnySearch 两行的差异是关键**：只有命中垂直域（带 CVE/DOI/股票代码/专利号/库名等标识符）时它的 W1/W4/W7 才跑到 3（直取 OSV/NVD/PubMed/Crossref 等权威库原始记录）；当泛搜索用时与 Tavily 同级，没有额外优势，所以不应护占通用搜索位。它对 W3 仅 1 分：**不支持小红书**，不能代替 Museon。
 
 ## 附录 B：渠道调用速查（工具名 / 参数 / 实测坑）
 
@@ -463,3 +520,7 @@ museoncli research +social-media-search --platform xhs --intent keyword-search \
 | Agent Reach command not found | CLI 未装 | 经用户同意后按官方 pipx/zip 自动安装 |
 | Agent Reach 小红书 warn | 登录态/OpenCLI 未激活 | 以 `doctor --json` 输出为准，完成 Chrome/OpenCLI 登录后复测 |
 | 子 Agent 搜索无结果 | 渠道缺失或命令过期 | 检查 doctor、官方文档和 CLI 实时帮助，不要猜命令 |
+| AnySearch `Unknown flag: xxx` | `--params` 值含空格未加引号 | 整体加单引号：`--params 'type=cve,value=CVE-2024-3094'` |
+| AnySearch 后端校验失败 | 漏传 `(required)` 参数 | 先 `get_sub_domains` 看必填项；不适用也要传空值（`cn_code=`） |
+| AnySearch 小红书搜不到 | **不支持小红书**，静默降级为通用搜索 | 改用 Museon；不要把降级结果当成口碑证据 |
+| AnySearch 返回极长刷爆上下文 | 垂直/社交模式本身很重 | 降 `--max_results`；批量查询改走子 Agent 消化后回传摘要 |

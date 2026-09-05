@@ -5,6 +5,73 @@
 
 ---
 
+## v3.5.0 — 2026-09-05
+
+**主题：垂直域结构化检索（可选增强），补上「带标识符查询」的能力空白。**
+
+现有 8 个通用渠道都只能做「关键词 → 网页链接」。但 W4（深度）/W7（权威）遇到带标识符的
+查询时，本质需要的是结构化数据源而非网页搜索。本版本不改变任何既有路径。
+
+### 新增
+
+- **`anysearch` 渠道**（tier 1，`required: false`）：[AnySearch](https://github.com/anysearch-ai/anysearch-skill)
+  Skill 形态（自带跳平台 CLI，无需 MCP server）。覆盖 16 个垂直域：finance/academic/
+  security/code/legal/health/ip/travel/gaming/film/business/energy/environment/agriculture/
+  resource/social_media。另具备 `batch_search` 并行与 `extract` 正文提取。
+- **`vertical_first` 路由规则**（channels.yaml 新配置节）：查询含结构化标识符
+  （CVE/DOI/PMID/股票代码/专利号/库名/IATA）或属 16 垂直域时，**跳过 tier1_order**
+  直接走垂直检索。实测依据：`CVE-2024-3094` 查询下，AnySearch 411ms 返回 OSV+NVD
+  结构化记录（精确 CPE 版本、CVSS:3.1 向量、完整 advisory 引用链），而通用搜索
+  （含 Tavily）只能给「文章里写着受影响版本是 5.6.0/5.6.1」。这是能力差，不是边际优化。
+- **`doctor.sh`**：新增 AnySearch 探测（逐个候选目录检查，含软链）。JSON 新增 `anysearch`
+  对象（`installed`/`dir`/`runtime`），文本报告新增「垂直域检索」一行；缺失只进
+  `optional_missing`，不影响 `ok`；已装但缺 `runtime.conf` 时出 warning。
+- **`SKILL.md`**：Step 0 新增第 5 步垂直域探测；Step 3 新增第 0 条「垂直域优先」（先于
+  所有其他规则判断）；附录 A 新增两行（垂直模式 W1/W4/W7=3，通用模式与 Tavily 同级）；
+  附录 B 新增调用速查；故障排查表新增 4 行。
+
+### 关于与 Tavily 的关系（最易误解点）
+
+两者**不是替代关系**，实测后的分工：
+
+- Tavily 返回「链接 + 正文摘录 + answer 概要」，适合需要直接读内容的泛搜索；实测中文表现
+  也不弱（能抽出教程正文段落）。**仍为 Tier1 泛搜索默认选项。**
+- AnySearch 通用搜索只给短摘要，且同题与 SearXNG 首条命中一致——**泛搜索无优势**，
+  所以在 `tier1_order` 里排在 Tavily 之后，只在命中垂直域时跳出该序列。
+
+### 关键缺口（已写入渠道 note 与 SKILL.md）
+
+- **AnySearch 不支持小红书**：实测 `type=xiaohongshu` 会静默降级为通用搜索，返回官网/
+  应用商店而非用户评价；通用搜索也只能抓到「关于小红书的报道」。因此 **W3 口碑与
+  W8 实操排障仍由 Museon 首发**，它只作 reddit/知乎/微博 的补充发现
+  （优势：reddit 结果直接内联评论区，一步完成发现+核验）。
+- **决策权冲突**：AnySearch 自带 SKILL.md 写着自己是 "the recommended search tool"
+  且默认走 vertical path。已在本 Skill 明确声明：两个 Skill 同时加载时，本 Routing 是
+  调度方，AnySearch 是被调度的渠道，不是并行决策者。
+- **token 成本**：通用 3 条约 262 token（比 SearXNG 省）；但 social_media 带评论区 3 条
+  约 3165 token、结构化 CVE 单条上千 token——垂直/社交模式很重，批量查询请走子 Agent。
+
+### 文档
+
+- `INSTALL.md` 新增「二.8、AnySearch 垂直域检索」，推荐**系统级统一目录 + 软链**安装
+  （`~/.agents/skills/<skill>` 作权威副本，各 harness 软链指向），避免多副本版本漂移。
+- README 中英两版新增 v3.5 说明，含与 Tavily 的分工对比表。
+
+### 安全
+
+安装前已审计 AnySearch v3.1.1：四个 CLI 的 SHA256 与官方 `SHA256SUMS.txt` 逐一匹配；
+出网域名只有 `api.anysearch.com`；无 eval/subprocess/child_process；不读取
+`.ssh`/`.aws`/keychain/history。
+
+### 验证
+
+- `scripts/test.sh` 全量通过（版本锚点、YAML 解析、doctor JSON 语义、零渠道 fake-home、
+  安装打包、文档锚点）。
+- 本机实测：anysearch 经四个 harness 软链路径均可调用；doctor.sh 正确报
+  `installed: true` 与 `runtime: Node.js`。
+
+---
+
 ## v3.4.0 — 2026-09-01
 
 **主题：零成本自建搜索渠道（可选增强），解决频繁搜索用户的免费额度焦虑。**

@@ -36,7 +36,7 @@ import pathlib
 import re
 
 root = pathlib.Path('.')
-expected = '3.4.0'
+expected = '3.5.0'
 checks = {
     'SKILL.md': [r'(?m)^\s*version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?'],
     'channels.yaml': [r'(?m)^version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?'],
@@ -67,17 +67,17 @@ except Exception:
     raise SystemExit(1)
 with open('channels.yaml', encoding='utf-8') as f:
     data = yaml.safe_load(f)
-assert data['version'] == '3.4.0'
+assert data['version'] == '3.5.0'
 assert 'channels' in data
 assert 'museon' in data['channels']
 assert data['channels']['museon']['required'] is True
 PY
 then
   pass "channels.yaml parses with PyYAML"
-elif command -v ruby >/dev/null 2>&1 && ruby -e 'require "yaml"; data=YAML.load_file("channels.yaml"); raise unless data["version"] == "3.4.0" && data.key?("channels") && data["channels"].key?("museon")'; then
+elif command -v ruby >/dev/null 2>&1 && ruby -e 'require "yaml"; data=YAML.load_file("channels.yaml"); raise unless data["version"] == "3.5.0" && data.key?("channels") && data["channels"].key?("museon")'; then
   pass "channels.yaml parses with ruby YAML"
 else
-  grep -Eq '^version: "3.4.0"$' channels.yaml
+  grep -Eq '^version: "3.5.0"$' channels.yaml
   grep -Eq '^channels:' channels.yaml
   grep -Eq '^priority_default:' channels.yaml
   grep -Eq 'museon:' channels.yaml
@@ -93,7 +93,7 @@ import json, subprocess
 raw = subprocess.check_output(['bash', 'doctor.sh', '--json'], text=True)
 data = json.loads(raw)
 assert data['schema_version'] == 1
-assert data['skill_version'] == '3.4.0'
+assert data['skill_version'] == '3.5.0'
 assert data['status'] in {'required_missing', 'optional_missing', 'warnings', 'w3_ready', 'ok'}
 assert set(data['missing']) == set(data['required_missing']) | set(data['optional_missing'])
 if data['required_missing']:
@@ -118,9 +118,11 @@ assert data['ok'] is False
 assert 'museoncli' in data['required_missing']
 assert 'agent-reach' in data['optional_missing']
 assert 'searxng_local' in data['optional_missing']
+assert 'anysearch' in data['optional_missing']
 assert data['museon']['installed'] is False
 assert data['agent_reach']['installed'] is False
 assert data['searxng']['healthy'] is False
+assert data['anysearch']['installed'] is False
 print('✅ fake-home zero-channel doctor semantics')
 PY
 
@@ -144,6 +146,8 @@ grep -q '自动安装' SKILL.md
 grep -q 'install-searxng.sh' SKILL.md
 grep -q 'searxng-local' channels.yaml
 grep -q 'tier1_order' channels.yaml
+grep -q 'anysearch' channels.yaml
+grep -q 'vertical_first' channels.yaml
 grep -q 'README.en.md' README.md
 grep -q 'README.md' README.en.md
 pass "documentation links and onboarding anchors present"

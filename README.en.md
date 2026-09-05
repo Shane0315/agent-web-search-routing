@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Harness](https://img.shields.io/badge/harness-Codex%20%7C%20Claude%20%7C%20Proma%20%7C%20any-blue)](#)
-[![Skill Version](https://img.shields.io/badge/version-3.4.0-green)](#)
+[![Skill Version](https://img.shields.io/badge/version-3.5.0-green)](#)
 
 ## Why you need it
 
@@ -24,6 +24,7 @@ This skill targets exactly those problems. It is a set of **decision rules** (`S
 - 🧠 **8-dimension information-need scoring**: facts / freshness / social proof / depth / Chinese ecosystem / English ecosystem / source authority / hands-on troubleshooting (0–3 each, with semantic anchors)
 - 💰 **Cost-adaptive routing**: subscription built-in (Tier 0) → free quota (Tier 1) → pay-per-use (Tier 2); sunk cost first
 - 🆓 **Zero-cost self-hosted channel (v3.4, optional)**: one script deploys a local SearXNG — no quota ceiling, no API key; the cure for quota anxiety if you search a lot
+- 🎯 **Vertical-domain structured retrieval (v3.5, optional)**: queries carrying identifiers (CVE / DOI / ticker / patent no. / library name) go straight to authoritative databases (OSV, NVD, PubMed, Crossref) instead of cross-checking three articles
 - 🔍 **Two-stage social-proof pipeline**: Museon for high-recall discovery → Agent Reach to verify original posts and comments → official docs for confirmation
 - 🆕 **Automatic onboarding**: the first trigger prints a "channel health report" and guides you to install only what is missing (Museon required, Agent Reach recommended)
 - 🧩 **Sub-agent search**: complex research is delegated to a sub-agent; the main agent receives only a few hundred words, keeping context clean
@@ -123,6 +124,42 @@ Three boundaries that matter:
 - **New users should not install it first.** The shortest path is still "install the skill → install Museon → complete one W3 social-proof query".
 - **It does not replace Museon + Agent Reach.** SearXNG is general web search; it cannot reach native Xiaohongshu / X / Reddit content, so W3 social proof and W8 hands-on troubleshooting still belong to social channels.
 
+## What's new in v3.5.0
+
+> Vertical-domain structured retrieval. Full history in [`CHANGELOG.md`](CHANGELOG.md).
+
+All eight existing general channels can only do "keywords → web links". But when a query carries a structured identifier, what you actually need is the database record, not an article. v3.5 adds [AnySearch](https://github.com/anysearch-ai/anysearch-skill) (**strictly optional**) to fill that gap, plus a new "vertical-first" routing rule: on a hit, skip the cost ordering and go straight to vertical retrieval.
+
+**Measured comparison** (which versions does `CVE-2024-3094` affect?):
+
+```text
+General search (incl. Tavily)  → three articles mentioning 5.6.0 / 5.6.1 in prose
+AnySearch vertical retrieval   → 411ms, structured OSV + NVD records:
+                                 exact CPE version identifiers, CVSS:3.1 vector,
+                                 full advisory reference chain
+```
+
+### How does it relate to Tavily? (not a replacement)
+
+This is the easiest point to misread. After measuring, the division of labour is:
+
+| | Tavily | AnySearch |
+|---|---|---|
+| Return shape | links + **extracted body text** + answer summary | links + short snippet (general) / structured record (vertical) |
+| General search | ✅ the default choice; solid on Chinese too | no added edge (same top hit as SearXNG) |
+| Identifier queries | only pages *about* the topic | ✅ **irreplaceable**, reads authoritative DBs |
+| Parallel batch | — | ✅ `batch_search` |
+
+Conclusion: **Tavily remains the Tier 1 default for general search**; AnySearch only takes over inside vertical domains. That is why it sits *after* Tavily in `tier1_order` yet jumps the queue entirely on a vertical hit.
+
+### Three boundaries that matter
+
+- **Skipping it breaks nothing.** It only lands in `optional_missing` and never affects `ok`.
+- **It does not support Xiaohongshu.** Measured: `type=xiaohongshu` silently degrades to general search and returns vendor sites instead of user reviews. So **W3 social proof and W8 troubleshooting still start with Museon**; AnySearch only supplements discovery on Reddit / Zhihu / Weibo.
+- **Routing authority stays here.** AnySearch's own SKILL.md calls itself "the recommended search tool" and defaults to the vertical path; when both skills are loaded it is a **channel being dispatched**, not a parallel decision-maker.
+
+For installation (canonical directory + symlinks, to avoid per-harness version drift) see [`INSTALL.md`](INSTALL.md) § 2.8.
+
 ## How it works
 
 ### Two-level flow
@@ -157,6 +194,10 @@ Tier 0  Subscription built-in search (GPT/Claude)  ← sunk cost, marginal ≈ 0
 Tier 1  Zero-cost self-hosted (SearXNG, optional)  ← v3.4: try it before quota channels
         Free quota (Tavily/Brave/Museon/Agent Reach)
 Tier 2  Pay-per-use (Zhipu, etc.)                  ← use sparingly
+
+※ v3.5 exception: queries carrying structured identifiers (CVE / DOI / ticker / patent no. /
+  library name) **skip the ordering above** and go straight to AnySearch vertical retrieval —
+  the gap there is a capability difference, not a marginal optimisation.
 ```
 
 ### Social-proof and hands-on-experience pipeline (v3.3: W3 + W8)
@@ -211,7 +252,8 @@ agent-web-search-routing/
 | [Museon](https://github.com/Museon-AI/museon-cli) | W3 discovery (native Xiaohongshu/X/Reddit) | $0 free tier | ⭐ required |
 | [Agent Reach](https://github.com/Panniantong/agent-reach) | W3 verification (15-platform router) | open source, free | recommended |
 | [SearXNG (self-hosted)](https://github.com/searxng/searxng) | Tier 1 general (zero cost) | $0, no ceiling | optional (v3.4; recommended for heavy search) |
-| Tavily | English general | 1000 credits/month | optional |
+| [AnySearch](https://github.com/anysearch-ai/anysearch-skill) | **vertical-domain structured retrieval** (16 domains) | free anonymous tier | optional (v3.5; recommended for CVE/DOI/ticker queries) |
+| Tavily | English general (with body extraction) | 1000 credits/month | optional |
 | Firecrawl | English general / scraping | 500 credits/month | optional |
 | Brave Search | English / depth | $5/month | optional |
 | Zhipu Web Search | Chinese / depth | pay-per-use | optional |

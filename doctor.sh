@@ -27,7 +27,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_NAME="agent-web-search-routing"
 SKILL_NAME="web-search-routing"
-EXPECTED_VERSION="3.4.0"
+EXPECTED_VERSION="3.5.0"
 
 execute_capture() {
   local output
@@ -292,6 +292,34 @@ if [ "$SEARXNG_HEALTHY" != "1" ]; then
   append_hint "SearXNG 本地自建是可选零成本通用搜索渠道（无额度上限，适合频繁搜索用户）；未安装不影响任何现有路径，无需立即安装。需要时运行 bash install-searxng.sh（Agent 可代跑）。"
 fi
 
+# ---- AnySearch 垂直域检索（v3.5，可选增强） ----
+# 约定统一目录 ~/.agents/skills/anysearch，各 harness 软链指向；逐个候选位置探测。
+ANYSEARCH_INSTALLED=0
+ANYSEARCH_DIR=""
+ANYSEARCH_RUNTIME=""
+for cand in \
+  "$HOME/.agents/skills/anysearch" \
+  "$HOME/.claude/skills/anysearch" \
+  "$HOME/.codex/skills/anysearch" \
+  "$HOME/.proma-community/default-skills/anysearch" \
+  "$HOME/.proma/default-skills/anysearch"; do
+  # -e 而非 -d：软链也要认（find -L 语义）
+  if [ -e "$cand/SKILL.md" ]; then
+    ANYSEARCH_INSTALLED=1
+    ANYSEARCH_DIR="$cand"
+    if [ -e "$cand/runtime.conf" ]; then
+      ANYSEARCH_RUNTIME="$(grep -m1 '^Runtime=' "$cand/runtime.conf" 2>/dev/null | cut -d= -f2- || true)"
+    fi
+    break
+  fi
+done
+if [ "$ANYSEARCH_INSTALLED" != "1" ]; then
+  add_optional_missing "anysearch"
+  append_hint "AnySearch 是可选的垂直域结构化检索渠道（CVE/DOI/股票代码/专利号/库名等标识符查询可直取权威数据库原始记录）；未安装不影响任何现有路径。它不支持小红书，不能代替 Museon 的 W3/W8 能力。"
+elif [ -z "$ANYSEARCH_RUNTIME" ]; then
+  add_warning "AnySearch 已安装但缺 runtime.conf；首次调用前需探测 Runtime（Python>Node>shell）并写入，否则每次都要重探"
+fi
+
 # ---- 配置线索：只做存在性/线索检查，不打印密钥值 ----
 TAVILY_FOUND=0
 for chat_tools in "$HOME/.proma-community/chat-tools.json" "$HOME/.proma/chat-tools.json"; do
@@ -425,6 +453,10 @@ if [ "$JSON" = "1" ]; then
   printf '"searxng":{"healthy":%s,"endpoint":%s},' \
     "$(to_bool "$SEARXNG_HEALTHY")" \
     "$(printf '%s' "$SEARXNG_ENDPOINT" | json_escape)"
+  printf '"anysearch":{"installed":%s,"dir":%s,"runtime":%s},' \
+    "$(to_bool "$ANYSEARCH_INSTALLED")" \
+    "$(printf '%s' "$ANYSEARCH_DIR" | json_escape)" \
+    "$(printf '%s' "$ANYSEARCH_RUNTIME" | json_escape)"
   # 数组为空时 "${ARR[@]}" 在 set -u 下会 unbound；用 ${ARR[@]:-} 兜底
   printf '"required_missing":%s,' "$(json_str_array ${REQUIRED_MISSING[@]+"${REQUIRED_MISSING[@]}"})"
   printf '"optional_missing":%s,' "$(json_str_array ${OPTIONAL_MISSING[@]+"${OPTIONAL_MISSING[@]}"})"
@@ -481,6 +513,9 @@ echo "  智谱:   $(warn_mark "$ZHIPU_FOUND")"
 echo
 echo "零成本自建渠道（可选）："
 echo "  SearXNG 本地: $(warn_mark "$SEARXNG_HEALTHY") $([ -n "$SEARXNG_ENDPOINT" ] && echo "${SEARXNG_ENDPOINT}（JSON API 正常）" || echo "未部署（bash install-searxng.sh，频繁搜索用户推荐）")"
+echo
+echo "垂直域检索（可选）："
+echo "  AnySearch: $(warn_mark "$ANYSEARCH_INSTALLED") $([ "$ANYSEARCH_INSTALLED" = "1" ] && echo "${ANYSEARCH_DIR}（runtime: ${ANYSEARCH_RUNTIME:-未探测}）" || echo "未安装（CVE/DOI/股票/专利类查询可直取权威库；不支持小红书，不代替 Museon）")"
 echo
 if [ "$WARNINGS_COUNT" -gt 0 ]; then
   echo "警告："

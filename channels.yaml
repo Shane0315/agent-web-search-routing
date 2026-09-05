@@ -15,7 +15,7 @@
 # w3_role:    W3 两阶段管线中的角色（discover=发现 / verify=核验 / confirm=确认）
 # =====================================================
 
-version: "3.4.0"
+version: "3.5.0"
 
 channels:
   # ───────────── Tier 0：订阅内置搜索（沉没成本）─────────────
@@ -121,6 +121,57 @@ channels:
       #      -H "Content-Type: application/json" \
       #      -d '{"query":"<关键词>","limit":5}'
     note: "Tavily 额度超限/不可用时的替代搜索渠道；scrape 按量消耗 credits，能用免费链路时优先 SearXNG"
+
+  # v3.5 新增：垂直域结构化检索。与 Tavily 不是竞争关系——见 note 的分工说明。
+  anysearch:
+    name: "AnySearch (统一搜索 + 16 垂直域)"
+    tier: 1
+    harness: ["any"]   # 自带跳平台 CLI（Python/Node/PowerShell/bash），无需 MCP server
+    capability: [W1, W2, W4, W6, W7]
+    vertical_domains: true   # 唯一具备结构化垂直检索的渠道
+    cost: "匹名免费（低频限）；注册免费 API Key 提升频限"
+    required: false
+    detect: |
+      # Skill 形态（推荐，无需 MCP server）：检查 skill 目录是否存在
+      ls ~/.agents/skills/anysearch/scripts/anysearch_cli.js 2>/dev/null \
+        || ls ~/.claude/skills/anysearch/scripts/anysearch_cli.js 2>/dev/null
+      # runtime.conf 里记录了安装时探测到的 Runtime 与 Command
+    endpoint: "https://api.anysearch.com（/v1/search, /v1/sub-domains, /v1/extract）"
+    tool_ref: |
+      # 调用前读 runtime.conf 取 Command（例：node <skill_dir>/scripts/anysearch_cli.js）
+      <cmd> search "<query>" --max_results 5
+      <cmd> get_sub_domains --domain <domain>        # 垂直搜索前必调，拿 sub_domain 与必填参数
+      <cmd> search "<q>" --tag <sub_domain> --params '<k=v,k=v>'
+      <cmd> batch_search --query "<q1>" --query "<q2>"  # 并行，其他渠道无此能力
+      <cmd> extract "<url>"                          # 返回 Markdown
+    install: |
+      # 1. 下载 pinned release（勿用 main 分支）
+      #    https://github.com/anysearch-ai/anysearch-skill/archive/refs/tags/v3.1.1.tar.gz
+      # 2. 校验完整性：shasum -a 256 -c SHA256SUMS.txt（应全部 OK）
+      # 3. 装到系统级统一目录，各 harness 用软链指向（避免多副本版本漂移）：
+      #    ~/.agents/skills/anysearch  ← 权威副本
+      #    ln -s ~/.agents/skills/anysearch ~/.claude/skills/anysearch
+      # 4. 写 runtime.conf：Python(需 requests) > Node(零依赖) > shell(需 jq+curl)
+      # 5. API Key 可选：.env 里 ANYSEARCH_API_KEY=xxx，不配则匹名
+    note: |
+      【与 Tavily 的分工】两者不是替代关系，实测结论：
+        - Tavily 返回「链接 + 正文摘录 + answer 概要」，适合需要直接读内容的泛搜索；
+          实测中文表现也不弱（能抽出教程正文段落）。仍为 Tier1 泛搜索默认选项。
+        - AnySearch 的不可替代价值在垂直域：带标识符的查询（CVE/DOI/股票代码/
+          专利号/库名/IATA）能直取权威数据库原始记录。实测 CVE-2024-3094：411ms 返回
+          OSV+NVD 结构化记录（精确 CPE 版本、CVSS 向量、完整 advisory 引用），
+          而通用搜索（含 Tavily）只能给「文章里写着受影响版本是 5.6.0/5.6.1」。
+        - 通用搜索上 AnySearch 无明显优势：同题与 SearXNG 首条命中一致，所以不进
+          tier1_order 前列；零成本渠道仍优先。
+      【不能做什么】social_media 覆盖 weibo/zhihu/X/reddit/linkedin/wechatmp，
+        但**不支持小红书**（实测 type=xiaohongshu 静默降级为通用搜索，返回官网/应用商店）。
+        所以 W3/W8 仍由 Museon 首发，AnySearch 只作 reddit/知乎/微博 的补充发现。
+      【token 成本】通用 3 条约 262 token（比 SearXNG 省）；但 social_media 带评论区
+        3 条约 3165 token、结构化 CVE 单条上千 token——垂直/社交模式很重，
+        复杂调研应走子 Agent。
+      【决策权】它自己的 SKILL.md 写着自己是 "the recommended search tool" 且默认走
+        vertical path。本 Routing 是调度方：AnySearch 是**被调度的渠道**，不是并行决策者。
+      【坑】--params 值含空格必须整体加引号，否则被当成未知 flag；必填参数即使不适用也要传空值。
 
   brave:
     name: "Brave Search (MCP)"
@@ -240,11 +291,30 @@ experiential_platforms:
 # 仅适用于纯事实/时效/专业类通用搜索（W3≤1 且 W8≤1）；口碑/实操类仍社交首发，不在此序列。
 tier1_order:
   - searxng-local   # $0 无上限（若已部署）→ 频繁搜索场景的主力，永远先试它
-  - tavily          # 1000 credits/月
+  - tavily          # 1000 credits/月；返回正文摘录 + answer 概要，泛搜索默认
+  - anysearch       # 匹名可用；通用搜索无优势所以排这里，但垂直域查询时跳出本序直接首选
   - firecrawl       # 500 credits/月
   - brave           # $5/月
   - zhipu           # 按量付费，中文深度必要时才用（属于 tier2，此处仅示意额序）
   # museon / agent-reach 为 W3/W8 专用，不参与通用搜索排序
+
+# v3.5：垂直域优先规则。命中时**跳过 tier1_order**，直接用 AnySearch 垂直检索，
+# 因为通用搜索拿不到结构化原始记录（实测差距显著，不是边际优化）。
+vertical_first:
+  trigger_identifiers:
+    - "CVE-编号"          # → security.vuln
+    - "DOI / PMID"        # → academic.citation / academic.biomedical
+    - "股票代码 / ticker"  # → finance.quote
+    - "专利号"            # → ip.*
+    - "库名/框架名 + 用法"  # → code.doc / code.snippet
+    - "IATA / 航班号"     # → travel.*
+  domains: [finance, academic, travel, health, code, legal, gaming, film,
+            business, security, ip, energy, environment, agriculture, resource, social_media]
+  procedure: |
+    1. 先 get_sub_domains --domain <domain> 拿 sub_domain 与必填参数（不能猜）
+    2. search --tag <sub_domain> --params '<k=v,...>'
+    3. 不确定是通用还是垂直时，batch_search 掐1通用+N垂直并行，覆盖优于猜
+  degrade: "AnySearch 不可用时回退 tier1_order 通用搜索，但必须告知用户拿不到结构化原始记录"
 
 # 零成本组合链路（可选自建，不消耗任何额度）
 # 适用 W1/W2/W4/W5/W6/W7；不适用 W3（社交口碑）——那仍需 Museon 发现 + Agent Reach 核验。

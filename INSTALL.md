@@ -1,4 +1,4 @@
-# web-search-routing 安装指南（v3.4.0）
+# web-search-routing 安装指南（v3.5.0）
 
 让 Skill 在任何 harness（ChatGPT/Codex、Claude Code、Proma 等）里**开箱即用**。
 核心：Skill 会自动探测环境并选择渠道；**Museon 必装 + Agent Reach 推荐装**，
@@ -168,6 +168,88 @@ websearch-free.sh "查询词" -k 3  # 零成本「搜索+拓3篇全文」；需�
 >
 > 启动日志里的 `wikidata 403` / `ahmia/torch loading failed` 是已禁用引擎的正常噪音，
 > 判断健康以 `searxng.sh --health` 为准。浏览器可直接开 http://127.0.0.1:8888 当日常搜索引擎。
+
+---
+
+## 二.8、AnySearch 垂直域检索（可选渠道，v3.5 新增）
+
+> 作用：带结构化标识符的查询直取权威数据库原始记录——CVE → OSV/NVD，DOI → Crossref/
+> OpenCitations，医学文献 → PubMed（支持 MeSH 字段限定），代码 → 100 万+ GitHub 仓正则检索。
+> 共 16 个垂直域，另具备其他渠道都没有的 `batch_search` 并行能力。
+>
+> ⚠️ **纯可选**：不装不影响任何现有路径。它**不是 Tavily 的替代品**（泛搜索无优势），
+> 也**不能代替 Museon**（不支持小红书）。只在带标识符的查询上不可替代。
+
+### 推荐安装方式：系统级统一目录 + 软链
+
+多 harness 环境下（Codex + Claude + Proma 共存），每个目录各放一份副本会引发**版本漂移**：
+升级时容易只改到一份，其他 harness 用的还是老版。推荐只维护一份权威副本，其余全用软链：
+
+```bash
+# 1. 下载 pinned release（勿用 main 分支；把 v3.1.1 换成最新 tag）
+cd /tmp
+curl -fsSL -o anysearch.tar.gz \
+  https://github.com/anysearch-ai/anysearch-skill/archive/refs/tags/v3.1.1.tar.gz
+tar -xzf anysearch.tar.gz && cd anysearch-skill-3.1.1
+
+# 2. 校验完整性（应全部 OK；它会持有你的 API key，这步不要略）
+shasum -a 256 -c SHA256SUMS.txt
+
+# 3. 装到系统级统一目录
+mkdir -p ~/.agents/skills/anysearch
+cp -R ./* ~/.agents/skills/anysearch/
+
+# 4. 各 harness 用软链指向（已验证可被正常加载）
+for d in ~/.claude/skills ~/.codex/skills \
+         ~/.proma-community/default-skills ~/.proma/default-skills; do
+  [ -d "$d" ] && ln -sfn ~/.agents/skills/anysearch "$d/anysearch"
+done
+```
+
+> 💡 同样的统一目录 + 软链方式也适用于本 Skill 自身，可以彻底避开多份副本版本不一致。
+
+### 探测 runtime 并写入 runtime.conf
+
+优先级 **Python（需 requests）> Node.js（零依赖）> shell（需 jq + curl）**。
+写入 `runtime.conf` 后 Agent 就不用每次重探：
+
+```bash
+# 例：系统 python3 没有 requests、但有 Node 时，选 Node 最干净
+cat > ~/.agents/skills/anysearch/runtime.conf <<'EOF'
+Runtime=Node.js
+Command=node /Users/<你的用户名>/.agents/skills/anysearch/scripts/anysearch_cli.js
+EOF
+```
+
+### 验证
+
+```bash
+CLI="node ~/.agents/skills/anysearch/scripts/anysearch_cli.js"
+$CLI search "hello world" --max_results 1      # 匹名即可，无需 API key
+$CLI get_sub_domains --domain security          # 垂直搜索前必调
+$CLI search "CVE-2024-3094" --tag security.vuln --params 'type=cve,value=CVE-2024-3094'
+```
+
+### API Key（可选，仅提升频限）
+
+匹名访问已可用（实测 6 连发未触限）。需更高频限时去 https://anysearch.com/console/api-keys
+注册，写入 `~/.agents/skills/anysearch/.env`：
+
+```text
+ANYSEARCH_API_KEY=<your_key>
+```
+
+> ⚠️ 搜索词、提取的 URL 和 API key 都会发往 `https://api.anysearch.com`。
+> 官方声称 zero retention / no logging，但涉密查询请自行评估后使用。
+
+### 实测坑
+
+| 现象 | 原因 | 处理 |
+|---|---|---|
+| `Unknown flag: xxx` | `--params` 值含空格未加引号 | 整体加单引号 |
+| 后端校验失败 | 漏传 `(required)` 参数 | 不适用也要传空值，如 `cn_code=` |
+| 小红书搜不到 | **不支持小红书**，静默降级 | 改用 Museon |
+| 输出刷爆上下文 | 垂直/社交模式本身很重 | 降 `--max_results`，批量查询走子 Agent |
 
 ---
 
