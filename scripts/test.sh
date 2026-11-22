@@ -133,11 +133,15 @@ HOME="$INSTALL_HOME" CODEX_HOME="$INSTALL_HOME/.codex" bash install.sh >/tmp/web
 DEST="$INSTALL_HOME/.codex/skills/agent-web-search-routing"
 for required in \
   SKILL.md ONBOARDING.md INSTALL.md README.md LICENSE channels.yaml doctor.sh install.sh \
-  install-museon.sh install-agent-reach.sh install-searxng.sh scripts/test.sh docs/new-user-dogfooding.md; do
+  install-museon.sh install-agent-reach.sh install-searxng.sh scripts/test.sh scripts/test-browser-routing.py docs/new-user-dogfooding.md; do
   test -e "$DEST/$required" || { echo "missing installed file: $required"; exit 1; }
 done
 bash -n "$DEST/install.sh" "$DEST/doctor.sh" "$DEST/install-museon.sh" "$DEST/install-agent-reach.sh" "$DEST/install-searxng.sh" "$DEST/scripts/test.sh"
 pass "install.sh copies required runtime files and shell scripts remain parseable"
+
+section "Ego Browser routing contract"
+python3 scripts/test-browser-routing.py
+pass "browser routing uses Ego Browser with Skill and runtime prerequisites"
 
 section "documentation anchors"
 grep -q 'docs/doctor-json.md' README.md

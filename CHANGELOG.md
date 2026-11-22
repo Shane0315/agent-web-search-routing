@@ -5,6 +5,16 @@
 
 ---
 
+## 未发布 — 2026-11-22
+
+**主题：统一使用 Ego Browser，不改变现有搜索渠道的 API/CLI 分工。**
+
+- `SKILL.md`：浏览器搜索、精读、核验、登录与授权必须使用 Ego Browser；先加载 `ego-browser` Skill，缺失时核验来源、备份并通过正式入口安装，再读取 `ego-browser skill` 当前指南。
+- 分开核验 Skill 可加载性、ego lite 运行时与站点登录态；被项目策略拒绝时不绕过，不让子 Agent、OpenCLI 或 OAuth 间接启动默认 Chrome。
+- `channels.yaml`：用 `ego-browser` 替换 Kimi WebBridge 浏览器入口；Agent Reach 的浏览器后端不能确认兼容时改用 Ego Browser 核验并说明限制。
+- `ONBOARDING.md`：补充相同前置要求；添加浏览器路由回归检查。
+- 本次为未发布规则修订，保留 3.5.0 版本锚点；未修改 `doctor.sh` JSON schema，不声称它已检测 Ego Browser。
+
 ## v3.5.0 — 2026-09-05
 
 **主题：垂直域结构化检索（可选增强），补上「带标识符查询」的能力空白。**

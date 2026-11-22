@@ -4,6 +4,8 @@
 
 > 最短路径：**安装 Skill → 让 Agent 自动安装 Museon（只有浏览器授权需要你点）→ 完成一次口碑查询**。Agent Reach 是第二阶段增强，用来读原帖和评论；轻量浏览器搜索只是最后兜底。
 
+**浏览器前置要求**：本指南中所有浏览器搜索、原帖核验、登录和授权，必须使用 **Ego Browser（ego lite；Skill 名称 `ego-browser`）**，不打开默认 Chrome，也不通过子 Agent、OpenCLI 或 OAuth 命令间接启动它。Agent 应先加载 `ego-browser` Skill；缺失则从当前 harness 正式管理入口或已核实的 Ego 官方来源安装，核对来源/兼容性并备份，安装后确认可加载（未获安装授权时先询问）。随后运行 `ego-browser skill` 并读完当前版指南。缺 ego lite 运行时则按该 Skill 的 `references/install.md` 处理，应用安装/升级另需授权。项目策略拒绝时不得绕过；第三方 Chrome 登录态不代表 Ego Browser 已登录。完整规则见 [SKILL.md 的浏览器统一规则](SKILL.md#浏览器统一规则必须使用-ego-browser)。
+
 Proma 新版主路径是 `~/.proma-community/default-skills/` 和 `~/.proma-community/agent-workspaces/*/skills/`；旧 `~/.proma/default-skills/` 只作为兼容路径。
 
 ## 1. 这个 Skill 解决什么问题？

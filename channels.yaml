@@ -81,7 +81,7 @@ channels:
       适合频繁搜索的用户：一次部署后通用搜索零边际成本，Tavily/Firecrawl/Brave
       的月度额度焦虑基本消除。
       短板：① 返回标题+URL+短摘要，不是 LLM-ready 清洗正文 → 需要正文时接
-      Jina Reader（websearch-free.sh 已封装）或浏览器；② 中文深度仍弱于智谱 Pro；
+      Jina Reader（websearch-free.sh 已封装）或 Ego Browser；② 中文深度仍弱于智谱 Pro；
       ③ W3 社交口碑无能力，仍需 Museon + Agent Reach；④ W8 实操排障仍应社交首发。
       经共享代理出口 IP 使用时部分引擎（DDG/Brave/Startpage/qwant/sogou）会触发
       验证码，install-searxng.sh 已默认禁用它们保响应速度，主力为
@@ -189,7 +189,7 @@ channels:
       #    env.BRAVE_API_KEY=BSAxxx
       #    代理环境（国内必需）：NODE_USE_ENV_PROXY=1 + HTTPS_PROXY/HTTP_PROXY/ALL_PROXY
       #    注意：需确认本地代理（如 Clash）已启动，否则 fetch failed
-    note: "英文/深度搜索强；免费档不支持 llm_context（400 OPTION_NOT_IN_PLAN）；深度抓正文用浏览器"
+    note: "英文/深度搜索强；免费档不支持 llm_context（400 OPTION_NOT_IN_PLAN）；深度抓正文用 Ego Browser"
 
   museon:
     name: "Museon CLI (社交平台原生数据，含小红书)"
@@ -200,7 +200,7 @@ channels:
     cost: "$0 免费档（跟踪 3 创作者）"
     required: true   # ← 必选渠道：W3 发现的核心通道
     install: |
-      # 用户同意后，Agent 应自动检查 python3/uv 并安装；只有浏览器 OAuth 需要用户操作。
+      # 用户同意后，Agent 应自动检查 python3/uv 并安装；只有 Ego Browser OAuth 需要用户操作。
       # 可直接运行本 Skill 附带脚本：bash install-museon.sh
       # 手动参考（当前已核实 v0.5.19）：
       #   MUSEON_VERSION=0.5.19
@@ -228,26 +228,37 @@ channels:
     install: |
       # 1. 安装 agent-reach（15 平台多后端路由器）
       #    安装指南：https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/install.md
-      # 2. 小红书等平台需 Chrome 登录态（OpenCLI 桥接）
+      # 2. 小红书等平台后端可能要求 Chrome/OpenCLI；先确认能使用 Ego Browser。
+      #    无法确认兼容则停用该浏览器后端，改为 Ego Browser 直接核验，不开启默认 Chrome。
       # 3. 验证：agent-reach doctor --json 看 xiaohongshu active_backend
       # 4. 保持更新：agent-reach check-update
     note: |
       15 平台多后端：Exa/GitHub/YouTube/B站/V2EX/RSS + 需登录态的小红书/Reddit/X/IG。
-      强在「打开原帖、读正文和评论、逐条核验」。可用性受浏览器扩展、登录态、
+      强在「打开原帖、读正文和评论、逐条核验」。可用性受第三方扩展与登录态、
       平台风控影响。与 Museon 互补：Museon 发现 → Agent Reach 核验。
 
-  kimi-webbridge:
-    name: "Kimi WebBridge (本地浏览器控制)"
+  ego-browser:
+    name: "Ego Browser（ego lite，统一浏览器入口）"
     tier: 1
-    harness: ["codex", "chatgpt-desktop", "generic"]
-    capability: [W3, W4, W6]
-    cost: "免费（本地 daemon，控制用户真实浏览器）"
-    required: false
+    harness: ["any"]
+    capability: [W1, W2, W3, W4, W5, W6, W7, W8]
+    cost: "以 Ego 官方当前方案为准；不假定免费或已包含订阅"
+    required: false   # 纯 API/CLI 搜索不依赖它；执行 Ego Browser步骤时必须就绪
+    detect: "当前 harness 能成功加载 ego-browser Skill；ego-browser skill 输出完整指南；站点登录态另查"
+    tool_ref: "先加载 ego-browser Skill，再运行 ego-browser skill；依当前指南和实际可用接口操作，不猜 API"
     install: |
-      # 本地浏览器控制 daemon，走用户已登录的浏览器会话。
-      # 不调 Kimi API、不按量付费；适合 W3 降级或浏览器兜底。
-      # 详情见其自身 SKILL.md（~/.codex/skills/kimi-webbridge/）
-    note: "本质是浏览器自动化，质量依赖页面可读性；Museon/Agent Reach 都缺失时的 W3 降级方案"
+      # 缺 Skill：使用当前 harness 正式 Skill 管理入口或已核实的 Ego 官方来源。
+      # 核对来源与兼容性，备份已有同名目录，安装/部署后确认当前 harness 可加载。
+      # 用户已授权缺失则安装时可执行，否则先取得同意；不编造 npm 包名或仓库。
+      # 缺运行时：读 ego-browser Skill 的 references/install.md；官方站 https://lite.ego.app/。
+      # Skill 与 ego lite 应用分开核验，应用安装/升级仍须相应授权。
+    note: |
+      所有浏览器搜索、精读、核验、登录和授权均使用 Ego Browser，不打开默认 Chrome，
+      不用 Kimi WebBridge/chrome-devtools/Playwright/agent-browser 另起浏览器，
+      也不让子 Agent 或第三方后端间接启动其他浏览器。策略拒绝时停止，不绕过。
+      Agent Reach/OpenCLI 浏览器后端须确认能使用 Ego Browser，否则改为 Ego Browser
+      直接核验并说明能力限制；独立 Chrome 登录态不等于 Ego Browser 登录态。
+      缺 Museon/Agent Reach 时只能低置信兜底；无法读取的原帖/评论不得宣称已核验。
 
   # ───────────── Tier 2：按量付费渠道 ─────────────
   zhipu:
@@ -324,7 +335,7 @@ free_pipeline:
   wrapper: "websearch-free.sh"           # 封装二者：~/.local/bin/websearch-free.sh（install-searxng.sh 附带）
   degrade_notes: |
     jina_reader_missing: websearch-free.sh 仍可用，但只返回搜索结果概览（标题+URL+摘要），
-      需要正文时用浏览器/WebFetch 打开重点 URL；或退回 Tavily/Firecrawl 有额度渠道。
+      需要正文时用 Ego Browser/WebFetch 打开重点 URL；或退回 Tavily/Firecrawl 有额度渠道。
 
 # W3 两阶段管线组合（v3.2 核心：发现 + 核验 互补，不替代）
 w3_pipeline:
@@ -332,6 +343,6 @@ w3_pipeline:
   verify: "agent-reach"     # 第2阶段·核验：读原帖/评论取证
   confirm: "official-docs"  # 第3阶段·确认：官方文档（仅价格/权益/功能变更时）
   degrade_notes:
-    no_museon: "浏览器打开小红书/X 搜索；无法批量抓原生数据，质量明显下降"
-    no_agent_reach: "Museon 发现 + 浏览器手动打开重点原帖；核验变慢，评论读取受限"
-    both_missing: "浏览器直接搜；仅 SEO 可见内容，口碑质量低"
+    no_museon: "Ego Browser 打开小红书/X 搜索；无法批量抓原生数据，质量明显下降"
+    no_agent_reach: "Museon 发现 + Ego Browser 手动打开重点原帖；核验变慢，评论读取受限"
+    both_missing: "Ego Browser 直接搜；仅 SEO 可见内容，口碑质量低"

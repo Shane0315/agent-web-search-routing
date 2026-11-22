@@ -19,6 +19,19 @@ metadata:
 
 > 👋 **首次使用先读 [`ONBOARDING.md`](ONBOARDING.md)**：它面向第一次上手的用户，讲清 5 分钟最小成功路径、渠道体检报告、未装 Museon/Agent Reach 的质量损失和最短验证问题。本文件是 Agent 的决策大脑；首次安装与体验引导优先链接到 ONBOARDING.md。
 
+## 浏览器统一规则：必须使用 Ego Browser
+
+本 Skill 及配套文档提到的浏览器操作，统一使用 **Ego Browser（ego lite；Skill 名称 `ego-browser`，用户写作 Ego Broswer 时也指它）**，包括网页搜索、原帖/评论核验、官方页精读、登录和 OAuth 授权。API/CLI 搜索与 WebFetch 正文读取不因此改为浏览器操作。
+
+1. **先检查并加载 `ego-browser` Skill**：目录存在不等于可调用，须确认当前 harness 能成功加载；已安装可用时不重复安装。
+2. **缺失则先安装 Skill**：通过当前 harness 正式 Skill 管理入口或已核实的 Ego 官方来源，核对来源和兼容性、备份已有同名目录，再安装/部署到当前 harness 可发现的位置并重新加载。不得猜测包名、仓库或安装命令，不得拿其他浏览器 Skill 冒充。用户已授权“缺失则安装”时直接执行；否则先请求安装同意。来源无法核验时暂停并说明缺口。
+3. **再检查运行时**：加载后运行 `ego-browser skill`，遵循当前安装版指南；输出必须包含 `[ego-browser:skill] end of guide`，截断则保存后分段读取。CLI 缺失或 `skill` 子命令不可用时，读取 `ego-browser` Skill 的 `references/install.md`；安装 Skill 不等于已安装 ego lite，应用安装/升级需相应授权，不静默执行。
+4. **禁止换浏览器绕路**：不打开默认 Chrome，不使用 chrome-devtools、Kimi WebBridge、Playwright/agent-browser 等另起浏览器；不让子 Agent、OpenCLI 或 OAuth 命令间接启动默认 Chrome。第三方浏览器后端只有确认能使用 Ego Browser 时才可调用；否则改为 Ego Browser 直接核验，并说明评论/批量读取等能力限制。第三方独立 Chrome/OpenCLI 登录态不等于 Ego Browser 登录态，不自动复制或迁移 Cookie。
+5. **登录与授权交还用户**：将验证 URL 显式交给 Ego Browser；遇登录、验证码、2FA 或人工批准，按当前指南交还控制，不绕过验证、不暴露凭据。命令若无法禁止自动打开其他浏览器，暂停该路径，不直接运行。
+6. **缺失与受限分开报告**：Skill 被项目策略拒绝、文件只读或权限不足时，不改白名单、不换路径读取或绕过拒绝；请用户通过正式入口处理。浏览器无法就绪时，可继续无需浏览器的 API/CLI 查询，但必须说明哪些核验未完成，不静默换浏览器。
+
+下文所有 Ego Browser 入口均须先满足上述前置条件；子 Agent 委派任务也必须携带该约束。Skill 是否可加载、运行时是否可用、目标站点是否已登录应分别核验；`doctor.sh` 的现有 JSON 未探测这些状态，不能仅凭其 `ok` 就宣称浏览器就绪。
+
 ## 用户路径（首次使用）
 
 ```text
@@ -86,13 +99,13 @@ metadata:
 
 ### 自动安装原则（必须遵守）
 
-用户同意安装 Museon 或 Agent Reach 后，**不要把一串命令丢给用户让用户自己一步步执行**。Agent 应自动执行可静默完成的检查/下载/安装/校验；只有浏览器 OAuth、网页登录、Chrome 登录态、用户填写个人凭据/权限确认时才暂停提示。
+用户同意安装 Museon 或 Agent Reach 后，**不要把一串命令丢给用户让用户自己一步步执行**。Agent 应自动执行可静默完成的检查/下载/安装/校验；只有 Ego Browser OAuth、网页登录、用户填写个人凭据/权限确认或后端兼容性不明时才暂停提示。
 
 ### Museon 自动安装流程
 
 当问题含 W3 且 Museon 缺失或未授权时：
 
-1. 先告知能力缺口并征求同意：“是否让我自动安装 Museon？只有浏览器授权需要你点一下。”
+1. 先告知能力缺口并征求同意：“是否让我自动安装 Museon？只有 Ego Browser授权需要你点一下。”
 2. 用户同意后，Agent 自动检查 `python3`、`uv`、`git`、`curl` 是否存在：
    - 缺 `uv` 且可用户态安装：运行官方安装脚本 `curl -LsSf https://astral.sh/uv/install.sh | sh`（或 wget 等价方式）。
    - 缺 `python3`、版本低于 3.11、缺网络工具或需要系统权限：暂停并说明需要用户安装/授权什么，不要编造替代命令。
@@ -104,7 +117,7 @@ metadata:
 4. 自动执行 `museoncli setup --agent auto`。不要未经核实写死 `proma`：官方支持 `auto`、`codex`、`claude-code`、`cursor`、`all`；如果 `auto` 未识别当前 Agent，再按输出说明显式选择或提示该 harness 的持久 Skill 安装限制。
 5. 自动执行 `museoncli auth status` / `museoncli whoami` 判断授权状态。
 6. 只有未授权时暂停，并把 `museoncli auth start` 返回的验证 URL/提示清晰展示给用户；不要暴露 device code、token、API key。然后运行 `museoncli auth finish --wait --timeout 60 --poll-interval 2` 等待批准。
-7. 用户完成浏览器登录/批准并回来说“继续”后，Agent 自动复测 `museoncli whoami`；成功后继续搜索。
+7. 用户完成 Ego Browser登录/批准并回来说“继续”后，Agent 自动复测 `museoncli whoami`；成功后继续搜索。
 8. 如果授权超时，不要重新开始，除非当前授权已过期/拒绝/已使用；继续等待同一轮授权即可。
 
 ### Agent Reach 自动安装流程
@@ -119,7 +132,7 @@ metadata:
    也可运行本 Skill 目录中的 `bash install-agent-reach.sh`。若遇到 Homebrew/PEP 688 externally-managed 环境，脚本会优先用 pipx/uvx；不要使用 sudo。
 3. 自动运行只读检查 `agent-reach install --env=auto`。
 4. 自动运行 `agent-reach doctor --json`，以输出中的 `active_backend`/状态为准。
-5. **只有以下情况才打断用户**：需要 `--system` 系统级安装、Chrome/OpenCLI 扩展、Chrome 登录态、网页登录/Cookie/凭据、或 doctor 明确要求权限。系统级命令 `agent-reach install --env=auto --system` 必须在用户明确同意后才运行；可选通道通过 `--channels=<官方文档确认的通道名>` 指定。
+5. **只有以下情况才打断用户**：需要 `--system` 系统级安装、浏览器后端兼容性未确认、Ego Browser 登录/凭据、或 doctor 明确要求权限。禁止为满足 Chrome/OpenCLI 要求而另开默认 Chrome。系统级命令 `agent-reach install --env=auto --system` 必须在用户明确同意后才运行；可选通道通过 `--channels=<官方文档确认的通道名>` 指定。
 6. 用户完成后，Agent 自动复测 `agent-reach doctor --json`，确认目标通道 `active_backend`。
 
 ### 引导强度
@@ -138,13 +151,13 @@ metadata:
   - Museon（发现）: 已装/未装/未授权
   - Agent Reach（核验）: 已装/未装，小红书登录态: 已激活/未激活
 
-如果 Museon 未装：我现在只能用内置搜索/普通网页搜索/浏览器做低置信兜底，结果可能只覆盖 SEO 页面和少量公开摘要，不能代表小红书/X/Reddit 的真实口碑。
-如果你同意，我会自动检查 python3/uv/curl，下载安装官方 Museon CLI，并执行 setup 和 whoami；只有浏览器登录授权需要你操作。是否现在开始？
+如果 Museon 未装：我现在只能用内置搜索/普通网页搜索/ Ego Browser做低置信兜底，结果可能只覆盖 SEO 页面和少量公开摘要，不能代表小红书/X/Reddit 的真实口碑。
+如果你同意，我会自动检查 python3/uv/curl，下载安装官方 Museon CLI，并执行 setup 和 whoami；只有 Ego Browser登录授权需要你操作。是否现在开始？
 
-如果 Museon 已装、Agent Reach 未装：我可以先用 Museon 跑通口碑发现；若需要逐条核验原帖评论，我再自动安装 Agent Reach，只有 Chrome 登录态/系统权限需要你确认。
+如果 Museon 已装、Agent Reach 未装：我可以先用 Museon 跑通口碑发现；若需要逐条核验原帖评论，经你同意后再安装 Agent Reach。需要登录时仅用 Ego Browser；后端不兼容则直接用 Ego Browser 核验并说明限制，系统权限另行确认。
 ```
 
-**用户拒绝安装时的执行规则**：可以继续用内置搜索、免费网页搜索或轻量浏览器 fallback，但必须在开头和结论中写明这是**低置信兜底**，不是完整 W3 口碑调研。
+**用户拒绝安装时的执行规则**：可以继续用内置搜索、免费网页搜索或轻量 Ego Browser fallback，但必须在开头和结论中写明这是**低置信兜底**，不是完整 W3 口碑调研。
 
 ### AnySearch 垂直域调用（v3.5，可选）
 
@@ -270,7 +283,7 @@ agent-reach doctor --json
    - **为何优先于零成本渠道**：这里的差距不是边际优化而是能力差。实测 `CVE-2024-3094`：AnySearch 411ms 返回 OSV+NVD 结构化记录（精确 CPE 版本、CVSS 向量、完整 advisory 引用）；通用搜索（含 Tavily）只能给「文章里写着受影响版本是 5.6.0/5.6.1」。
    - AnySearch 不可用 → 回退通用渠道，但告知用户拿不到原始记录。
 1. **经验/口碑类（W3≥2 或 W8≥2）**：**Museon（小红书等社交原生）首发**，再按成本补通用渠道。
-   - 订阅模式：Museon 先发（社交原生内容内置搜索抓不到，先搜内置等于白搜）→ 需要官方规则/价格/条款确认时再用 Tier0 内置或浏览器查官方页。
+   - 订阅模式：Museon 先发（社交原生内容内置搜索抓不到，先搜内置等于白搜）→ 需要官方规则/价格/条款确认时再用 Tier0 内置或 Ego Browser查官方页。
    - API 模式：Museon 首发 → 需要事实/官方补充时接智谱（中文）或 Tavily/Brave（英文）。
    - 原因：这类问题的高价值答案在「踩过坑的真人帖子」里，不在 SEO 网页里；通用搜索即使 0 成本，返回不可用结果也是浪费。
    - **AnySearch 不能接管这一档**：它的 social_media 覆盖 weibo/zhihu/X/reddit/linkedin/wechatmp，但**不支持小红书**（实测 `type=xiaohongshu` 静默降级为通用搜索，返回官网/应用商店）。只当目标平台是 reddit/知乎/微博 时，才可用它做补充发现（优势：reddit 结果直接内联评论区，一步完成发现+核验）。
@@ -301,7 +314,7 @@ agent-reach doctor --json
   「为什么收不到企业微信加我个人微信的好友请求？」
   W8=3 W5=3 W3=1
   → Museon 小红书首发（搜“企业微信 好友请求 收不到”等）
-  → 需确认官方设置规则时，内置搜索/浏览器打开微信官方说明佐证
+  → 需确认官方设置规则时，内置搜索/ Ego Browser打开微信官方说明佐证
   → 不要只丢给内置网页搜索：SEO 结果对这类问题基本不可用
 示例（API 模式，中文事实+口碑查询）：
   W1=3 W3=3 W5=3
@@ -342,15 +355,15 @@ agent-reach doctor --json
 
 ### 第 3 阶段：确认（官方文档/产品实测）
 
-涉及价格、权益、条款、功能是否变更时，用浏览器/WebFetch/内置网页读取工具打开官方文档或官网确认；不要编造 `agent-reach web`。
+涉及价格、权益、条款、功能是否变更时，用 Ego Browser/WebFetch/内置网页读取工具打开官方文档或官网确认；不要编造 `agent-reach web`。
 
 ### W3/W8 强度 → 阶段深度映射
 
 | 得分 | 阶段选择 |
 |---------|---------|
 | W3=3（核心口碑调研，如“产品避雷点”）| 完整三阶段（Museon → Agent Reach → 官方）|
-| W8=3（核心实操排障，如“收不到好友请求/功能突然失灵”）| Museon 小红书首发找解法 → Agent Reach/浏览器打开高赞原帖核实步骤 → 涉及官方设置项时用官方文档确认路径 |
-| W3=2 或 W8=2（一般口碑/顺带经验）| Museon 发现 + 浏览器快速核验（不强制 Agent Reach）|
+| W8=3（核心实操排障，如“收不到好友请求/功能突然失灵”）| Museon 小红书首发找解法 → Agent Reach/ Ego Browser打开高赞原帖核实步骤 → 涉及官方设置项时用官方文档确认路径 |
+| W3=2 或 W8=2（一般口碑/顺带经验）| Museon 发现 + Ego Browser快速核验（不强制 Agent Reach）|
 | W3≤1 且 W8≤1 | 不走社交管线，用普通搜索 |
 
 > **W8 核验要点**：排障帖的解法可能已随 App 版本失效。重点看「近期发帖 + 评论区反馈“亲测有效/已不行”」，把过时解法和当前可用解法区分开；涉及权限/开关路径时，最后用官方文档或实测确认一次。
@@ -359,13 +372,13 @@ agent-reach doctor --json
 
 | 缺哪个 | 降级方案 | 质量影响 |
 |--------|---------|---------|
-| 缺 Museon | 浏览器直接打开小红书网页版/App 搜索（`https://www.xiaohongshu.com/search_result?keyword=<关键词>`），再用内置/普通网页搜索补官方信息 | ⚠️ **只能低置信兜底**：无法批量抓取原生数据与互动信号，不能声称完成 W3/W8 社交调研；对 W8 排障类问题，宁可浏览器手动搜小红书也不要只给通用网页搜索结果 |
-| 缺 Agent Reach | Museon 发现 + 浏览器手动打开重点原帖，或只输出发现结论 | ⚠️ 核验变慢，评论读取受限；结论需标注“未完成原帖/评论核验” |
-| 两者都缺 | 内置搜索/浏览器直接搜 | ❌ 仅 SEO 可见内容，口碑质量低；只能给初步线索 |
+| 缺 Museon | Ego Browser直接打开小红书网页版/App 搜索（`https://www.xiaohongshu.com/search_result?keyword=<关键词>`），再用内置/普通网页搜索补官方信息 | ⚠️ **只能低置信兜底**：无法批量抓取原生数据与互动信号，不能声称完成 W3/W8 社交调研；对 W8 排障类问题，宁可 Ego Browser手动搜小红书也不要只给通用网页搜索结果 |
+| 缺 Agent Reach | Museon 发现 + Ego Browser手动打开重点原帖，或只输出发现结论 | ⚠️ 核验变慢，评论读取受限；结论需标注“未完成原帖/评论核验” |
+| 两者都缺 | 内置搜索/ Ego Browser直接搜 | ❌ 仅 SEO 可见内容，口碑质量低；只能给初步线索 |
 
 **价值论证**：
 
-> 你自己打开小红书/浏览器搜索：只能看到前几页、无法批量分析、看不到点赞/评论/收藏/作者等互动数据。
+> 你自己打开小红书/ Ego Browser搜索：只能看到前几页、无法批量分析、看不到点赞/评论/收藏/作者等互动数据。
 > 装 Museon 后：一次能搜 10+ 条原生结果，带完整互动信号，可批量分析「大家在讨论什么、有没有避雷点」。
 > Agent Reach 同理：装后能打开原帖逐条核验，把「个案」和「高频共识」分清楚。
 
@@ -403,11 +416,11 @@ agent-reach doctor --json
 - **缺 Museon**：W3 口碑 / W8 实操排障类问题质量受限（小红书真实经验搜不到）→ 请求同意后自动安装。
 - **Museon 未授权**：只在 OAuth 步骤提示用户，完成后自动复测。
 - **缺 Agent Reach**：口碑核验不充分 → 请求同意后自动安装基础版；系统/登录步骤才提示。
-- **Agent Reach 小红书登录态未激活**：无法读原帖/评论 → 引导激活 Chrome 登录态/OpenCLI。
+- **Agent Reach 小红书登录态未激活**：无法读原帖/评论 → 先核验后端是否能使用 Ego Browser；不能确认兼容则用 Ego Browser 直接读原帖，不引导开启默认 Chrome。
 - **缺 Tier1 免费渠道**：中文/英文质量不足 → 建议配智谱/Brave/Tavily（可选）。
 - **频繁搜索额度紧张**（v3.4）：推荐自建 SearXNG 零成本渠道（`bash install-searxng.sh`，Agent 可代跑）；仅向表达额度焦虑/高频搜索的用户推荐，不向普通用户推销。
 - **订阅模式未用足**：提示 GPT/Claude 内置搜索是沉没成本，应优先使用。
-- **结果仍不满意**：建议切换更高质量渠道或使用浏览器精读。
+- **结果仍不满意**：建议切换更高质量渠道或使用 Ego Browser精读。
 
 ---
 
@@ -430,7 +443,7 @@ agent-reach doctor --json
 | 智谱 Web Search | 3 | 2 | 1 | **3** | **3** | 2 | 2 | 1 |
 | 小红书 (Museon, `--platform xhs`) | 1 | **3** | **3** | 1 | **3** | 1 | 1 | **3** |
 | X/Reddit (Museon) | 1 | **3** | **3** | 1 | 1 | **3** | 1 | 2 |
-| 浏览器 (chrome-devtools/内置) | 3 | 3 | 2 | 3 | 3 | 3 | 2 | 2 |
+| Ego Browser（`ego-browser` Skill） | 3 | 3 | 2 | 3 | 3 | 3 | 2 | 2 |
 
 > 通用网页搜索（内置/Tavily/Brave/智谱）对 W8 只有 1 分：SEO 内容对实操排障基本不可用，不能作为经验类问题首发。
 >
@@ -465,7 +478,7 @@ agent-reach doctor --json
 ### Brave Search（英文/深度，需代理）
 
 - MCP：`npx -y @brave/brave-search-mcp-server`，工具名 `brave_web_search`；env 需要 `BRAVE_API_KEY` + `NODE_USE_ENV_PROXY=1` + `HTTPS_PROXY/HTTP_PROXY/ALL_PROXY`（国内必需）
-- `brave_llm_context` **免费档不支持**（400 OPTION_NOT_IN_PLAN）；深度抓正文改用浏览器或 `brave_web_search` + 手动开 URL
+- `brave_llm_context` **免费档不支持**（400 OPTION_NOT_IN_PLAN）；深度抓正文改用 Ego Browser或 `brave_web_search` + 手动开 URL
 - W7 权威场景用 `search_domain_filter`/Goggles 指定官网域名
 
 ### Museon CLI（社交口碑 W3 + 实操经验 W8 首发）
@@ -482,9 +495,10 @@ museoncli research +social-media-search --platform xhs --intent keyword-search \
 - 返回原生数据：作者/点赞/收藏/评论/封面/时间/URL；免费档 $0（跟踪 3 个创作者）
 - 首次使用先 `museoncli schema research +social-media-search` 看最新参数；401 走 `museoncli auth status/start/finish --wait`
 
-### 浏览器兜底
+### Ego Browser 兜底
 
-- 打开 Google/Bing/小红书网页版搜索，或直接开具体 URL 抓正文
+- 调用顺序：加载 `ego-browser` Skill（缺失则按顶部规则先安装）→ 运行 `ego-browser skill` 并读完指南 → 按指南操作；工具名和参数以当前实际可用工具及指南为准，不猜测 API，也不混用其他浏览器的接口。
+- 使用 Ego Browser 打开 Google/Bing/小红书网页版搜索，或直接开具体 URL 抓正文
 - 适用：所有工具失败、需要登录态页面、需要原文、复杂 L4 调研；W8 缺 Museon 时优先手动搜小红书（`https://www.xiaohongshu.com/search_result?keyword=<关键词>`）
 
 ## Proma 路径说明
@@ -514,11 +528,11 @@ museoncli research +social-media-search --platform xhs --intent keyword-search \
 | 智谱 MCP 无工具 | 未重启 / type 配错 | 重启；MCP type 必须是 http（不是 sse） |
 | 智谱中文结果相关性差 | 用了 Std 引擎 | 深度场景改用 Pro/Quark，或加 `search_domain_filter` |
 | Brave fetch failed | Node 不走代理或仅有 npx 但未配置 key/MCP | 配置 BRAVE_API_KEY + `NODE_USE_ENV_PROXY=1` + 代理 env；确认本地代理已启动 |
-| Brave llm_context 400 | 免费档不含该端点 | 不用 llm_context；改 brave_web_search 或浏览器抓正文 |
+| Brave llm_context 400 | 免费档不含该端点 | 不用 llm_context；改 brave_web_search 或 Ego Browser抓正文 |
 | Tavily 免费额度用尽 | 1000 credits/月用完 | 降级智谱（中文）/Brave（英文）；等月度重置 |
 | Museon 401 / whoami 失败 | OAuth 过期或未授权 | `museoncli auth status/start/finish --wait`，授权后复测 whoami |
 | Agent Reach command not found | CLI 未装 | 经用户同意后按官方 pipx/zip 自动安装 |
-| Agent Reach 小红书 warn | 登录态/OpenCLI 未激活 | 以 `doctor --json` 输出为准，完成 Chrome/OpenCLI 登录后复测 |
+| Agent Reach 小红书 warn | 登录态/OpenCLI 未激活 | 以 `doctor --json` 输出为准；仅在确认后端兼容 Ego Browser 时登录复测，否则用 Ego Browser 直接核验并说明限制 |
 | 子 Agent 搜索无结果 | 渠道缺失或命令过期 | 检查 doctor、官方文档和 CLI 实时帮助，不要猜命令 |
 | AnySearch `Unknown flag: xxx` | `--params` 值含空格未加引号 | 整体加单引号：`--params 'type=cve,value=CVE-2024-3094'` |
 | AnySearch 后端校验失败 | 漏传 `(required)` 参数 | 先 `get_sub_domains` 看必填项；不适用也要传空值（`cn_code=`） |

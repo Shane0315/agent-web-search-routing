@@ -8,6 +8,8 @@
 [![Harness](https://img.shields.io/badge/harness-Codex%20%7C%20Claude%20%7C%20Proma%20%7C%20any-blue)](#)
 [![Skill Version](https://img.shields.io/badge/version-3.5.0-green)](#)
 
+**Browser requirement:** all browser-based search, original-post/comment verification, login and authorization must use **Ego Browser (ego lite)**. Load the `ego-browser` Skill first; if missing, install it through a verified official source or the harness's supported manager with the required consent, then read `ego-browser skill`. Never launch default Chrome, including through sub-agents or third-party backends. Check Skill availability, runtime and site login separately; stop on policy/permission denial. API/CLI search channels remain unchanged. See the [browser contract](SKILL.md#浏览器统一规则必须使用-ego-browser).
+
 ## Why you need it
 
 Common failure modes when an agent goes online:
@@ -17,7 +19,7 @@ Common failure modes when an agent goes online:
 - 🎯 **Searching and still learning nothing**: search results are SEO-polluted, and real user opinions (Xiaohongshu / X / Reddit) are unreachable
 - 📚 **Context blowup**: one search dumps tens of thousands of tokens into the main context and dilutes later reasoning
 
-This skill targets exactly those problems. It is a set of **decision rules** (`SKILL.md`), bound to no specific vendor, telling the agent **when to search, what to search with, how to combine channels, how to save money, and how to keep quality**.
+This skill targets exactly those problems. It is a set of **decision rules** (`SKILL.md`), with flexible search providers and Ego Browser as the required browser, telling the agent **when to search, what to search with, how to combine channels, how to save money, and how to keep quality**.
 
 ## Key features
 

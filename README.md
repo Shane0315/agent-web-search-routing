@@ -8,6 +8,8 @@
 [![Harness](https://img.shields.io/badge/harness-Codex%20%7C%20Claude%20%7C%20Proma%20%7C%20any-blue)](#)
 [![Skill Version](https://img.shields.io/badge/version-3.5.0-green)](#)
 
+**浏览器统一要求**：网页搜索、原帖/评论核验、登录和授权必须使用 **Ego Browser（ego lite）**；先加载 `ego-browser` Skill，缺失时按正式管理入口/已核实官方来源安装，再运行 `ego-browser skill` 阅读当前指南。不打开默认 Chrome，也不让子 Agent 或第三方后端间接启动它。Skill、运行时与站点登录态分别核验；受权限/策略限制时停止，不绕过。API/CLI 搜索渠道的分工不变，详见 [浏览器规则](SKILL.md#浏览器统一规则必须使用-ego-browser)。
+
 ## 为什么需要它？
 
 当 Agent 需要联网搜索时，常见问题：
@@ -17,7 +19,7 @@
 - 🎯 **搜了也白搜**：搜索引擎结果被 SEO 污染，真人真实口碑（小红书/X/Reddit）搜不到
 - 📚 **上下文爆炸**：一次搜索返回上万 token 塞进主上下文，稀释后续推理
 
-这个 Skill 解决的就是这些问题——它是一份**决策规则**（SKILL.md），不绑定任何具体工具，告诉 Agent **什么时候搜、用什么搜、怎么组合、怎么省钱、怎么保质量**。
+这个 Skill 解决的就是这些问题——它是一份**决策规则**（SKILL.md），搜索渠道不绑定单一工具，浏览器操作统一使用 Ego Browser，告诉 Agent **什么时候搜、用什么搜、怎么组合、怎么省钱、怎么保质量**。
 
 ## 核心特性
 
